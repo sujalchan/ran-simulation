@@ -17,7 +17,7 @@ https://www.roblox.com/CreateAccount
 Clone the project repository into a folder on your computer using:
 
 ```bash
-git clone https://github.com/Sujal-Chand/ran-simulation
+git clone https://github.com/sujalchan/ran-simulation
 ```
 
 Roblox Studio must also be installed. It is available for Windows and macOS from:
