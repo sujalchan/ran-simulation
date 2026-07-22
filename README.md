@@ -75,4 +75,4 @@ Contact the development team for questions, feedback, or further information abo
 **Developer:** Monica Lillo — [tnb5953@aut.ac.nz](mailto:tnb5953@aut.ac.nz) \
 **Developer:** Sophia Armonia — [kvm2122@autuni.ac.nz](mailto:kvm2122@autuni.ac.nz) \
 **Project Mentor:** Minh Nguyen — [minh.nguyen@aut.ac.nz](mailto:minh.nguyen@aut.ac.nz) \
-**Project Mentor:** Steve Le - [qle752@uoa.auckland.ac.nz](mailto:qle752@uoa.auckland.ac.nz) \
+**Project Mentor:** Steve Le - [qle752@uoa.auckland.ac.nz](mailto:qle752@uoa.auckland.ac.nz) 
