@@ -1,10 +1,13 @@
 local RunService = game:GetService("RunService")
 local replicatedStorage = game:GetService("ReplicatedStorage")
 local frequencyChangedEvent = replicatedStorage:WaitForChild("FrequencyChangedEvent")
+local toggleHeatmapEvent = replicatedStorage:WaitForChild("ToggleHeatmapEvent")
 local levelOne = replicatedStorage:WaitForChild("LevelOne") -- objects cloned from replicated storage
 local levelOneMaterials = workspace:WaitForChild("LevelOneMaterials") -- materials in level one
 
-local signalSource = workspace:WaitForChild("SignalSource")
+local signalSourcesFolder = workspace:WaitForChild("SignalSourcesFolder")
+local signalSources = signalSourcesFolder:GetChildren()
+
 local heatmapTile = levelOne:WaitForChild("HeatmapTile")
 
 -- generate a grid folder for the heatmap tiles
@@ -70,12 +73,8 @@ end
 -- constantly update random tiles
 local updatesPerFrame = 30
 
--- this can be any coordinate in the world
-local targetPosition = signalSource.Position
-
 -- how far away should count as max default 3500mhz
 local maxDistance = 30
-
 
 local raycastParams = RaycastParams.new()
 raycastParams.FilterType = Enum.RaycastFilterType.Include
@@ -83,44 +82,156 @@ raycastParams.FilterDescendantsInstances = {levelOneMaterials}
 
 local ATTENUATION_SCALE = 0.01
 local SHADOW_FALLOFF_DISTANCE = 10
+local TRANSMIT_POWER_DBM = -30
+local MINIMUM_RSRP_DBM = -120
+local MAXIMUM_RSRP_DBM = -50
+
+local function calculateRSRPDbm(tilePosition, antenna)
+	local distance = (tilePosition - antenna.Position).Magnitude
+	distance = math.max(distance, 1)
+	
+	local distanceRatio = math.clamp(distance / maxDistance, 0, 1)
+	
+	local rsrpDbm = MAXIMUM_RSRP_DBM
+		+ distanceRatio * (MINIMUM_RSRP_DBM - MAXIMUM_RSRP_DBM)
+	
+	local rayOrigin = tilePosition + Vector3.new(0, 1, 0)
+	local rayDirection = antenna.Position - rayOrigin
+	
+	local raycastResult = workspace:Raycast(
+		rayOrigin,
+		rayDirection,
+		raycastParams
+	)
+	
+	if raycastResult then
+		local hitPart = raycastResult.Instance
+		local attenuation = hitPart:GetAttribute("Attenuation") or 0
+
+		local distanceFromMaterial = raycastResult.Distance
+		local shadowStrength = math.exp(
+			-distanceFromMaterial / SHADOW_FALLOFF_DISTANCE
+		)
+
+		rsrpDbm -= attenuation * shadowStrength
+	end
+
+	return rsrpDbm
+end
+
+local function rsrpToValue(rsrpDbm)
+	return math.clamp(
+		(rsrpDbm - MINIMUM_RSRP_DBM)
+			/ (MAXIMUM_RSRP_DBM - MINIMUM_RSRP_DBM),
+		0,
+		1
+	)
+end
+
+local function updateRSRP()
+	local randomIndex = rng:NextInteger(1, #heatmapTiles)
+	local randomTile = heatmapTiles[randomIndex]
+
+	local strongestRSRP = -math.huge
+
+	for _, antenna in ipairs(signalSources) do
+		local rsrpDbm = calculateRSRPDbm(
+			randomTile.Position,
+			antenna
+		)
+
+		if rsrpDbm > strongestRSRP then
+			strongestRSRP = rsrpDbm
+		end
+	end
+
+	local heatValue = rsrpToValue(strongestRSRP)
+	randomTile.Color = valueToColour(heatValue)
+end
+
+local function dBmToMilliwatts(dBm)
+	return 10 ^ (dBm / 10)
+end
+
+local function milliwattsToDb(milliwatts)
+	return 10 * math.log10(milliwatts)
+end
+
+local NOISE_FLOOR_DBM = -104
+
+local MINIMUM_SINR_DB = -10
+local MAXIMUM_SINR_DB = 30
+
+local function sinrToValue(sinrDb)
+	return math.clamp(
+		(sinrDb - MINIMUM_SINR_DB)
+			/ (MAXIMUM_SINR_DB - MINIMUM_SINR_DB),
+		0,
+		1
+	)
+end
+
+
+local function updateSINR()
+	local randomIndex = rng:NextInteger(1, #heatmapTiles)
+	local randomTile = heatmapTiles[randomIndex]
+
+	if #signalSources == 0 then
+		return
+	end
+
+	local strongestSignalPower = 0
+	local totalReceivedPower = 0
+
+	for _, antenna in ipairs(signalSources) do
+		local rsrpDbm = calculateRSRPDbm(
+			randomTile.Position,
+			antenna
+		)
+
+		local receivedPower = dBmToMilliwatts(rsrpDbm)
+
+		totalReceivedPower += receivedPower
+
+		if receivedPower > strongestSignalPower then
+			strongestSignalPower = receivedPower
+		end
+	end
+
+	-- everything except the strongest signal is interference
+	local interferencePower =
+		totalReceivedPower - strongestSignalPower
+
+	local noisePower = dBmToMilliwatts(NOISE_FLOOR_DBM)
+
+	local sinrLinear = strongestSignalPower
+		/ (interferencePower + noisePower)
+
+	local sinrDb = milliwattsToDb(sinrLinear)
+
+	randomTile.Color = valueToColour(
+		sinrToValue(sinrDb)
+	)
+end
+
+local showingSINR = false
+
 RunService.Heartbeat:Connect(function()
 	for i = 1, updatesPerFrame do
-		local randomIndex = rng:NextInteger(1, #heatmapTiles)
-		local randomTile = heatmapTiles[randomIndex]
-		-- get distance from tile to target
-		local distance = (randomTile.Position - targetPosition).Magnitude
-		
-		local rayOrigin = randomTile.Position + Vector3.new(0, 1, 0)
-		local rayDirection = targetPosition - rayOrigin
-		
-		local raycastResult = workspace:Raycast(
-			rayOrigin,
-			rayDirection,
-			raycastParams
-		)
-		
-		local distanceValue = distance / maxDistance
-		
-		if raycastResult then
-			local hitPart = raycastResult.Instance
-			local attenuation = hitPart:GetAttribute("Attenuation") or 0
-			
-			local distanceFromMaterial = raycastResult.Distance
-			local shadowStrength = math.exp(
-				-distanceFromMaterial / SHADOW_FALLOFF_DISTANCE
-			)
-			distanceValue += ATTENUATION_SCALE * attenuation * shadowStrength
+		if showingSINR  then
+			updateSINR()
+		else
+			updateRSRP()
 		end
-		
-		-- convert distance into 0 to 1
-		distanceValue = math.clamp(distanceValue, 0, 1)
-		
-		local heatValue = 1 - distanceValue
-		randomTile.Color = valueToColour(heatValue)
 	end
 end)
 
 frequencyChangedEvent.OnServerEvent:Connect(function(player, newMaxDistance)
 	maxDistance = newMaxDistance
 	print("Max distance changed to:", maxDistance)
+end)
+
+toggleHeatmapEvent.OnServerEvent:Connect(function(player, update)
+	showingSINR = (update == "SINR")
+	print("Heatmap toggled to:", update)
 end)
