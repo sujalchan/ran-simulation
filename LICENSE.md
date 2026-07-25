@@ -112,7 +112,7 @@ Access to this repository or project does not grant any implied licence, ownersh
 
 For permission requests, contact:
 
-Sujal Chand — [xyx5264@aut.ac.nz](mailto:xyx5264@aut.ac.nz) \
+Sujal Chand — [xyx5264@autuni.ac.nz](mailto:xyx5264@autuni.ac.nz) \
 Katsumi Shimazaki — [vsx0398@autuni.ac.nz](mailto:vsx0398@autuni.ac.nz) \
-Monica Lillo — [tnb5953@aut.ac.nz](mailto:tnb5953@aut.ac.nz) \
+Monica Lillo — [tnb5953@autuni.ac.nz](mailto:tnb5953@autuni.ac.nz) \
 Sophia Armonia — [kvm2122@autuni.ac.nz](mailto:kvm2122@autuni.ac.nz) 
