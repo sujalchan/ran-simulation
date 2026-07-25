@@ -114,8 +114,6 @@ local function updatePlayerSize(player)
 end
 
 local function setupCharacter(player, character)
-	local humanoid = character:WaitForChild("Humanoid")
-
 	-- remove values belonging to the previous character
 	originalScales[player] = nil
 	originalWalkSpeeds[player] = nil

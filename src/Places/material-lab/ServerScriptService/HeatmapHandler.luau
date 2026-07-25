@@ -21,7 +21,6 @@ local heatmapTiles = {}
 -- random number generator
 local rng = Random.new()
 
-
 -- grid description
 local ROWS = 24
 local COLUMNS = 30
@@ -199,8 +198,7 @@ local function updateSINR()
 	end
 
 	-- everything except the strongest signal is interference
-	local interferencePower =
-		totalReceivedPower - strongestSignalPower
+	local interferencePower = totalReceivedPower - strongestSignalPower
 
 	local noisePower = dBmToMilliwatts(NOISE_FLOOR_DBM)
 
@@ -226,7 +224,7 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
-frequencyChangedEvent.OnServerEvent:Connect(function(player, newMaxDistance)
+frequencyChangedEvent.OnServerEvent:Connect(function(player, frequencyBand, newMaxDistance)
 	maxDistance = newMaxDistance
 	print("Max distance changed to:", maxDistance)
 end)
