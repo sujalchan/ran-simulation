@@ -167,7 +167,8 @@ local function updateSignalBars(rsrp)
 	end
 end
 
-local function updateUI(rsrp, materialName, towerDistance)
+local function updateUI(rsrp, sinr, materialName, towerDistance)
+	-- SIGNAL STRENGTH (RSRP) UI
 	signalValue.Text = rsrp .. " dBm"
 
 	if rsrp >= -70 then
@@ -186,27 +187,25 @@ local function updateUI(rsrp, materialName, towerDistance)
 
 	updateSignalBars(rsrp)
 
-	-- signal quality
+	-- SIGNAL QUALITY (SINR) UI
+	
+	local qualityPercent = sinr / 20
 
-	local estimatedRsrq = math.clamp(rsrp + 10, -20, -3)
-	local qualityPercent = math.clamp((estimatedRsrq + 20) / 17, 0, 1)
-
-	qualityValue.Text = estimatedRsrq .. " dB"
+	qualityValue.Text = sinr .. " dB"
 	progressFill.Size = UDim2.new(qualityPercent, 0, 1, 0)
 
-	if estimatedRsrq >= -10 then
+	if sinr >= 15 then
 		qualityStatusBadge.Text = "🎧 Clear"
 		qualityStatusBadge.TextColor3 = Color3.fromRGB(46, 204, 113)
-	elseif estimatedRsrq >= -15 then
+	elseif sinr >= 8 then
 		qualityStatusBadge.Text = "📻 Some interference"
 		qualityStatusBadge.TextColor3 = Color3.fromRGB(243, 156, 18)
 	else
 		qualityStatusBadge.Text = "⚠️ Poor quality"
 		qualityStatusBadge.TextColor3 = Color3.fromRGB(231, 76, 60)
 	end
-
-	-- tower and capacity
-
+	
+	-- TOWER AND CAPACITY UI 
 	towerNameLabel.Text = "Mt Eden"
 	towerDetailsLabel.Text =
 		"Sector 2 · " .. math.floor(towerDistance) .. "m"
@@ -278,8 +277,13 @@ end
 
 RunService.RenderStepped:Connect(function()
 	local rsrp = player:GetAttribute("RSRP") or -120
+	local sinr = math.clamp(
+		player:GetAttribute("SINR") or 0,
+		0,
+		20
+	)
 	local materialName = player:GetAttribute("Material") or "None"
 	local towerDistance = player:GetAttribute("TowerDistance") or 0
 
-	updateUI(rsrp, materialName, towerDistance)
+	updateUI(rsrp, sinr, materialName, towerDistance)
 end)

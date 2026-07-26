@@ -26,6 +26,44 @@ raycastParams.FilterDescendantsInstances = {
 local timer = 0
 local playerNoise = {}
 
+-- background radio noise in dBm
+local NOISE_FLOOR_DBM = -100
+
+-- convert dBm into milliwatts
+local function dbmToMilliwatts(dbm)
+	return 10 ^ (dbm / 10)
+end
+
+-- caclulate attenuation between the player and one source
+local function getMaterialAttenuation(playerPosition, sourcePosition)
+	local direction = sourcePosition - playerPosition
+	local result = workspace:Raycast(
+		playerPosition,
+		direction,
+		raycastParams
+	)	
+	
+	if result then
+		return result.Instance:GetAttribute("Attenuation") or 0
+	end
+	
+	return 0
+end
+
+-- calculate signal without adding noise
+-- calculate signal without adding visual noise
+local function calculateSourceSignal(player, distance, attenuation)
+	local rangeDivisor =
+		player:GetAttribute("FrequencyDivisor")
+		or FrequencyData.Default.divisor
+
+	return math.clamp(
+		-50 - distance / rangeDivisor - attenuation,
+		-120,
+		-50
+	)
+end
+
 -- get a source position from a part or model
 local function getSourcePosition(source)
 	if source:IsA("BasePart") then
@@ -62,8 +100,8 @@ local function findClosestSignalSource(position)
 	return closestSource, closestPosition, closestDistance
 end
 
--- calculate the signal strength for a player
-local function calculateSignal(player, towerDistance, materialAttenuation)
+-- calculate the signal RSRP for a player
+local function calculateRSRP(player, towerDistance, materialAttenuation)
 	local rangeDivisor = player:GetAttribute("FrequencyDivisor") or FrequencyData.Default.divisor
 
 	local baseSignal = math.clamp(
@@ -91,6 +129,47 @@ local function calculateSignal(player, towerDistance, materialAttenuation)
 		))
 end
 
+-- calculate the signal SINR for a player
+local function calculateSINR(player, playerPosition, servingSource)
+	local servingPower = 0
+	local interferencePower = 0
+
+	for _, source in ipairs(signalSourcesFolder:GetChildren()) do
+		local sourcePosition = getSourcePosition(source)
+
+		if sourcePosition then
+			local distance = (sourcePosition - playerPosition).Magnitude
+
+			local attenuation = getMaterialAttenuation(
+				playerPosition,
+				sourcePosition
+			)
+
+			local signalDbm = calculateSourceSignal(
+				player,
+				distance,
+				attenuation
+			)
+
+			local signalPower = dbmToMilliwatts(signalDbm)
+
+			if source == servingSource then
+				servingPower = signalPower
+			else
+				interferencePower += signalPower
+			end
+		end
+	end
+
+	local noisePower = dbmToMilliwatts(NOISE_FLOOR_DBM)
+
+	local sinr = 10 * math.log10(
+		servingPower / (interferencePower + noisePower)
+	)
+
+	return math.floor(math.clamp(sinr, 0, 20))
+end
+
 -- update the signal data for one player
 local function updatePlayerSignal(player)
 	local character = player.Character
@@ -114,6 +193,7 @@ local function updatePlayerSignal(player)
 		player:SetAttribute("Material", "None")
 		player:SetAttribute("Attenuation", 0)
 		player:SetAttribute("RSRP", -120)
+		player:SetAttribute("SINR", 0)
 		return
 	end
 
@@ -134,17 +214,24 @@ local function updatePlayerSignal(player)
 		attenuation = hitPart:GetAttribute("Attenuation") or 0
 	end
 
-	local rsrp = calculateSignal(
+	local rsrp = calculateRSRP(
 		player,
 		sourceDistance,
 		attenuation
 	)
 
+	local sinr = calculateSINR(
+		player,
+		playerPosition,
+		closestSource
+	)
+	
 	player:SetAttribute("ClosestSignalSource", closestSource.Name)
 	player:SetAttribute("TowerDistance", sourceDistance)
 	player:SetAttribute("Material", materialName)
 	player:SetAttribute("Attenuation", attenuation)
 	player:SetAttribute("RSRP", rsrp)
+	player:SetAttribute("SINR", sinr)
 end
 
 -- set the default attributes for a player
@@ -161,6 +248,7 @@ local function setupPlayer(player)
 	player:SetAttribute("Material", "None")
 	player:SetAttribute("Attenuation", 0)
 	player:SetAttribute("RSRP", -120)
+	player:SetAttribute("SINR", 0)
 end
 
 -- react when a player changes the frequency
