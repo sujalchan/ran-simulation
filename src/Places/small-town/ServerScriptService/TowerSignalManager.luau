@@ -29,9 +29,9 @@ if #towers == 0 then
 	return
 end
 
-print("TowerSignalManager loaded! Found " .. #towers .. " cell towers.")
+print("TowerSignalManager loaded. Found " .. #towers .. " cell towers.")
 
--- frequency divisor mapping (same as Material Lab)
+-- frequency divisor mapping (same as material lab)
 local frequencyData = {
 	["700 MHz"] = { divisor = 1.2, maxDistance = 45 },
 	["1800 MHz"] = { divisor = 0.9, maxDistance = 40 },
@@ -78,13 +78,18 @@ local function updatePlayerSignal(player)
 	local attenuation = player:GetAttribute("Attenuation") or 0
 	local materialName = player:GetAttribute("Material") or "None"
 
-	--get signal
+	-- get signal
 	local maxPower = closestTower.MaxPower or -50
 	local divisor = freqInfo.divisor
 	local maxDist = closestTower.MaxDistance or freqInfo.maxDistance or 35
 
-	-- distance-based signal (starts at maxPower, decreases with distance)
-	local baseSignal = maxPower - (distance / divisor)
+	-- scale distance down (studs / 10) so it works in a reasonable range
+	local scaledDistance = distance / 10
+
+	-- distance-based signal (starts at -50, decreases with distance)
+	local baseSignal = -50 - (scaledDistance / divisor)
+	-- weaker towers = worse signal (adds offset)
+	baseSignal = baseSignal + (maxPower + 50)
 
 	-- apply material attenuation
 	local finalSignal = baseSignal - attenuation
@@ -112,6 +117,11 @@ local function updatePlayerSignal(player)
 	player:SetAttribute("SignalBars", barCount)
 	player:SetAttribute("TowerDistance", math.floor(distance))
 	player:SetAttribute("FrequencyBand", freqBand)
+
+	-- debug: print every time rsrp is set (only for first player)
+	if player == Players:GetPlayers()[1] then
+		print("setting rsrp:", math.floor(finalSignal), "for", player.Name, "dist:", math.floor(distance), "scaled:", math.floor(scaledDistance))
+	end
 end
 
 -- update all players every 0.2 seconds
