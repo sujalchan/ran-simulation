@@ -51,14 +51,21 @@ local function updatePopUp()
 		labels.TiltAngle.Text = "📐 Tilt Angle: " .. tiltAngle .. "°"
 	end
 
+	-- only show Azimuth and Elevation for NarrowBeam
+	local narrowBeam = antennaType == "NarrowBeam"
+
 	if labels.Azimuth then
-		labels.Azimuth.Text = "📍 Azimuth: " .. azimuth .. "°"
-		labels.Azimuth.Visible = true
+		labels.Azimuth.Visible = narrowBeam
+		if narrowBeam then
+			labels.Azimuth.Text = "📍 Azimuth: " .. azimuth .. "°"
+		end
 	end
 
 	if labels.Elevation then
-		labels.Elevation.Text = "📍 Elevation: " .. elevation .. "°"
-		labels.Elevation.Visible = true
+		labels.Elevation.Visible = narrowBeam
+		if narrowBeam then
+			labels.Elevation.Text = "📍 Elevation: " .. elevation .. "°"
+		end
 	end
 
 	if insightLabel then
