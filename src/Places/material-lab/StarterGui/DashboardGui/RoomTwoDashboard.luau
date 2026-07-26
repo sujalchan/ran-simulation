@@ -108,18 +108,19 @@ local function updateRoom2(
 			i <= barCount and 0 or 0.7
 	end
 
+	-- insight labels based on antenna types
 	if antennaType == "Omnidirectional" then
 		insightLabel.Text =
-			"💡 Omnidirectional: signal radiates equally in all directions (donut pattern). Covers large areas, like open spaces or city centres."
+			"💡 Omnidirectional - click 'Antenna Details' for more info!"
 	elseif antennaType == "Directional" then
 		insightLabel.Text =
-			"💡 Directional: signal focused in one direction (32° beam). Best for corridors, streets, and targeted coverage."
+			"💡 Directional - click 'Antenna Details' for more info!"
 	elseif antennaType == "NarrowBeam" then
 		insightLabel.Text =
-			"💡 Narrow Beam: highly focused signal (microwave beam). Best for point-to-point links and backhaul."
+			"💡 Narrow Beam - click 'Antenna Details' for more info!"
 	else
 		insightLabel.Text =
-			"💡 Different antenna types shape the signal in different ways. Check the posters to learn more!"
+			"💡 Walk near different antennas to see how they shape signals."
 	end
 end
 
