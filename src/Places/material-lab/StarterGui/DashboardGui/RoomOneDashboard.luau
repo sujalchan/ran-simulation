@@ -206,9 +206,9 @@ local function updateUI(rsrp, sinr, materialName, towerDistance)
 	end
 	
 	-- TOWER AND CAPACITY UI 
-	towerNameLabel.Text = "Mt Eden"
-	towerDetailsLabel.Text =
-		"Sector 2 · " .. math.floor(towerDistance) .. "m"
+	local towerName = player:GetAttribute("ClosestSignalSource")
+	towerNameLabel.Text = towerName or "Searching..."
+	towerDetailsLabel.Text = math.floor(towerDistance) .. "m away"
 
 	local userCount = 1 + npcCount
 	local loadPercent
