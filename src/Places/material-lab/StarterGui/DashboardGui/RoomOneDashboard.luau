@@ -113,42 +113,131 @@ for i = 1, 5 do
 	bars[i] = barsContainer:WaitForChild("Bar" .. i)
 end
 
-local modeButton = room1Frame:WaitForChild("ModeButton")
-local dropdownMenu = room1Frame:WaitForChild("FrequencyDropdownMenu")
+-- frequency slider logic
+local slider = room1Frame:FindFirstChild("FrequencySlider")
+if slider then
+	local frequencyOptions = {
+		{name = "700 MHz (4G)", band = "700 MHz", divisor = 1.2, maxDistance = 45},
+		{name = "1800 MHz (4G)", band = "1800 MHz", divisor = 0.9, maxDistance = 40},
+		{name = "2100 MHz (4G)", band = "2100 MHz", divisor = 0.7, maxDistance = 35},
+		{name = "3500 MHz (5G)", band = "3500 MHz", divisor = 0.5, maxDistance = 30},
+	}
 
-modeButton.Text = FrequencyData.Default.name .. " ▼"
+	local knob = slider:FindFirstChild("Knob")
+	local fill = slider:FindFirstChild("SliderFill")
+	local freqLabel = room1Frame:FindFirstChild("FrequencyLabel")
 
--- Populate/bind dropdown buttons using module options
-for _, item in ipairs(dropdownMenu:GetChildren()) do
-	if item:IsA("TextButton") then
-		for _, frequency in ipairs(FrequencyData.Options) do
-			if item.Text:find(frequency.name) then
-				item.MouseButton1Click:Connect(function()
-					modeButton.Text = frequency.name .. " ▼"
-					dropdownMenu.Visible = false
+	local currentIndex = 4
+	local isDragging = false
+	local lastSentIndex = 4
 
-					frequencyChangedEvent:FireServer(
-						frequency.band,
-						frequency.maxDistance
-					)
+	-- get knob size
+	local function getKnobOffset()
+		local knobSize = knob and knob.AbsoluteSize.X or 24
+		return knobSize / 2
+	end
 
-					print(
-						"Frequency changed to:",
-						frequency.name,
-						"| Divisor:",
-						frequency.divisor
-					)
-				end)
+	-- update visual position
+	local function updateSliderVisual(ratio)
+		ratio = math.clamp(ratio, 0, 1)
+		local halfKnob = getKnobOffset()
 
-				break
-			end
+		if knob then
+			knob.Position = UDim2.new(ratio, 0, 0.5, 0)
+		end
+		if fill then
+			fill.Size = UDim2.new(ratio, 0, 1, 0)
 		end
 	end
-end
 
-modeButton.MouseButton1Click:Connect(function()
-	dropdownMenu.Visible = not dropdownMenu.Visible
-end)
+	-- snap to nearest frequency
+	local function snapToIndex(index)
+		local pos = (index - 1) / (#frequencyOptions - 1)
+		local halfKnob = getKnobOffset()
+		if knob then
+			knob.Position = UDim2.new(pos, -halfKnob, 0.5, 0)
+		end
+		if fill then
+			fill.Size = UDim2.new(pos, 0, 1, 0)
+		end
+		if freqLabel then
+			freqLabel.Text = frequencyOptions[index].name
+		end
+	end
+
+	local function sendFrequencyToServer(index)
+		if index ~= lastSentIndex then
+			lastSentIndex = index
+			local freq = frequencyOptions[index]
+			frequencyChangedEvent:FireServer(freq.band, freq.maxDistance)
+			print("Frequency changed to:", freq.name)
+		end
+	end
+
+	-- get ratio from mouse
+	local function getRatioFromMouse(input)
+		local relativeX = input.Position.X - slider.AbsolutePosition.X
+		return math.clamp(relativeX / slider.AbsoluteSize.X, 0, 1)
+	end
+
+	local function getNearestIndexFromRatio(ratio)
+		local index = math.floor(ratio * (#frequencyOptions - 1) + 0.5)
+		return math.clamp(index + 1, 1, #frequencyOptions)
+	end
+
+	-- mouse down on slider
+	slider.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			isDragging = true
+			local ratio = getRatioFromMouse(input)
+			updateSliderVisual(ratio)
+			currentIndex = getNearestIndexFromRatio(ratio)
+			if freqLabel then
+				freqLabel.Text = frequencyOptions[currentIndex].name
+			end
+		end
+	end)
+
+	-- mouse down on knob
+	if knob then
+		knob.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				isDragging = true
+				local ratio = getRatioFromMouse(input)
+				updateSliderVisual(ratio)
+				currentIndex = getNearestIndexFromRatio(ratio)
+				if freqLabel then
+					freqLabel.Text = frequencyOptions[currentIndex].name
+				end
+			end
+		end)
+	end
+
+	-- mouse drag (smooth)
+	local userInputService = game:GetService("UserInputService")
+	userInputService.InputChanged:Connect(function(input)
+		if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local ratio = getRatioFromMouse(input)
+			updateSliderVisual(ratio)
+			currentIndex = getNearestIndexFromRatio(ratio)
+			if freqLabel then
+				freqLabel.Text = frequencyOptions[currentIndex].name
+			end
+		end
+	end)
+
+	-- mouse up
+	userInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			isDragging = false
+			snapToIndex(currentIndex)
+			sendFrequencyToServer(currentIndex)
+		end
+	end)
+
+	-- initial update
+	snapToIndex(currentIndex)
+end
 
 -- room 1 ui updates
 
@@ -259,19 +348,19 @@ local function updateUI(rsrp, sinr, materialName, towerDistance)
 
 	if materialName == "Wood" then
 		insightLabel.Text =
-			"🌲 Wood blocks a little signal. Houses let most signal through!"
+			"🚪 Wood blocks a little signal. Houses let most signal through!"
 	elseif materialName == "Concrete" then
 		insightLabel.Text =
 			"🏢 Concrete blocks a lot of signal! That's why buildings need indoor antennas."
 	elseif materialName == "Metal" then
 		insightLabel.Text =
-			"✨ METAL = FARADAY CAGE! ✨ Metal completely blocks radio waves - like an elevator!"
+			"🎛️ Metal completely blocks radio waves - like an elevator!"
 	elseif npcCount > 0 then
 		insightLabel.Text =
 			"👥 " .. npcCount .. " NPCs connected! More users = higher tower load!"
 	else
 		insightLabel.Text =
-			"💡 Walk near different materials to see how they affect signal!"
+			"💡 Walk near different materials or change the frequency to see how they affect signal!"
 	end
 end
 
