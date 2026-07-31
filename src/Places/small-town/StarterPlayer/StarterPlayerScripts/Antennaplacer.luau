@@ -16,6 +16,7 @@ local selectedAntenna = "Antenna1"
 local preview = nil
 local currentAngle = 0  -- Rotation angle in degrees (0, 90, 180, 270)
 local deleteMode = false
+local antennaSelected = true  -- true when a button is blue/active
 local baseToPivotOffset = Vector3.zero
 local originalModelRotation = CFrame.identity
 
@@ -174,7 +175,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		if deleteMode then
-			-- In delete mode, raycast to find a placed antenna
 			local mouse = player:GetMouse()
 			local ray = camera:ScreenPointToRay(mouse.X, mouse.Y)
 			local placedFolder = workspace:FindFirstChild("PlacedAntennas")
@@ -196,6 +196,8 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 				end
 			end
 		else
+			-- Only place if an antenna button is selected (blue)
+			if not antennaSelected then return end
 			local pos = getMousePosition()
 			if pos then
 				placeEvent:FireServer(selectedAntenna, pos, currentAngle)
@@ -279,6 +281,7 @@ local function createGUI()
 				-- Deselect: turn dark and destroy preview
 				button.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
 				selectedButton = nil
+				antennaSelected = false
 				if preview then
 					preview:Destroy()
 					preview = nil
@@ -294,6 +297,7 @@ local function createGUI()
 			-- Highlight new selection
 			button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 			selectedButton = button
+			antennaSelected = true
 
 			selectedAntenna = name.modelName
 			createPreview()
