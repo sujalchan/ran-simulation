@@ -132,6 +132,25 @@ local MAX_NPCS = 50
 local currentCount = 0
 local isDragging = false
 local lastSentCount = 0
+local isHovering = false
+local isDragging = false
+
+local function updatePlacementState()
+	-- Disable placement if hovering OR dragging
+	local canPlace = not (isHovering or isDragging)
+	player:SetAttribute("CanPlaceAntenna", canPlace)
+end
+
+-- Hover Detection on the Main Frame
+mainFrame.MouseEnter:Connect(function()
+	isHovering = true
+	updatePlacementState()
+end)
+
+mainFrame.MouseLeave:Connect(function()
+	isHovering = false
+	updatePlacementState()
+end)
 
 local function updateSlider(count)
 	count = math.clamp(count, 0, MAX_NPCS)

@@ -174,6 +174,9 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	end
 
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		if player:GetAttribute("CanPlaceAntenna") == false then
+			return
+		end
 		if deleteMode then
 			local mouse = player:GetMouse()
 			local ray = camera:ScreenPointToRay(mouse.X, mouse.Y)

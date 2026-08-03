@@ -134,6 +134,25 @@ screenGui.Parent = playerGui
 local currentSpeed = MIN_SPEED
 local isDragging = false
 local isSprinting = false
+local isHovering = false
+local isDragging = false
+
+local function updatePlacementState()
+	-- Disable placement if hovering OR dragging
+	local canPlace = not (isHovering or isDragging)
+	player:SetAttribute("CanPlaceAntenna", canPlace)
+end
+
+-- Hover Detection on the Main Frame
+mainFrame.MouseEnter:Connect(function()
+	isHovering = true
+	updatePlacementState()
+end)
+
+mainFrame.MouseLeave:Connect(function()
+	isHovering = false
+	updatePlacementState()
+end)
 
 local function updateSlider(speed)
 	speed = math.clamp(speed, MIN_SPEED, MAX_SPEED)
@@ -204,3 +223,4 @@ if character then
 	task.wait(0.5)
 	applySpeed()
 end
+
