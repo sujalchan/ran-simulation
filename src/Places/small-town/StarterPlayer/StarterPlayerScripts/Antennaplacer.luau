@@ -24,13 +24,25 @@ local originalModelRotation = CFrame.identity
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
+local INITIAL_BUDGET = 100
+local currentBudget = INITIAL_BUDGET
+
 -- The 4 antenna options
 local antennaOptions = {
-	{displayName = "Antenna 1", modelName = "Antenna1"},
-	{displayName = "Antenna 2", modelName = "Antenna2"},
-	{displayName = "Antenna 3", modelName = "Antenna3"},
-	{displayName = "Antenna 4", modelName = "Antenna4"},
+	{displayName = "Antenna 1", modelName = "Antenna1", cost = 5},
+	{displayName = "Antenna 2", modelName = "Antenna2", cost = 10},
+	{displayName = "Antenna 3", modelName = "Antenna3", cost = 25},
+	{displayName = "Antenna 4", modelName = "Antenna4", cost = 50},
 }
+
+local function getSelectedCost()
+	for _, opt in ipairs(antennaOptions) do
+		if opt.modelName == selectedAntenna then
+			return opt.cost
+		end
+	end
+	return 0
+end
 
 -- Calculate the center of the base (bottom face) of the antenna model
 local function computeBaseCenter(model)
@@ -96,12 +108,11 @@ local function createPreview()
 	end
 
 	preview = template:Clone()
-	preview.Parent = workspace
 
 	-- Get the model's original rotation
 	local pivot = preview:GetPivot()
 	originalModelRotation = pivot - pivot.Position
-
+	
 	-- Place model at origin with original rotation to compute base info
 	preview:PivotTo(originalModelRotation)
 
@@ -116,6 +127,8 @@ local function createPreview()
 			part.CanCollide = false
 		end
 	end
+
+	preview.Parent = workspace
 end
 
 -- Get mouse world position
@@ -123,9 +136,13 @@ local function getMousePosition()
 	local mouse = player:GetMouse()
 	local ray = camera:ScreenPointToRay(mouse.X, mouse.Y)
 
-	rayParams.FilterDescendantsInstances = {preview}
+	local excludeList = {}
+	if preview then table.insert(excludeList, preview) end
+	if player.Character then table.insert(excludeList, player.Character) end
 
-	local result = workspace:Raycast(ray.Origin, ray.Direction * 500, rayParams)
+	rayParams.FilterDescendantsInstances = excludeList
+
+	local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, rayParams)
 	if result then
 		return result.Position
 	end
@@ -134,19 +151,23 @@ end
 
 -- Move preview 
 RunService.RenderStepped:Connect(function()
-	if not gameStarted or not preview then
+	if not gameStarted or not preview or deleteMode or not antennaSelected then
+		if preview then preview.Parent = nil end
 		return
 	end
 
 	local pos = getMousePosition()
 	if pos then
+		preview.Parent = workspace
 		-- Rotate the offset from base center to pivot by current angle
 		local rotCF = CFrame.Angles(0, math.rad(currentAngle), 0)
 		local rotatedOffset = rotCF * baseToPivotOffset
-
+		
 		-- Position pivot such that base center is at the mouse position
 		local pivotPos = pos + rotatedOffset
 		preview:PivotTo(CFrame.new(pivotPos) * rotCF * originalModelRotation)
+	else
+		preview.Parent = nil
 	end
 end)
 
@@ -167,7 +188,18 @@ local function rotatePreview(direction)
 	end
 end
 
--- Place antenna or delete antenna
+-- Update budget text
+local function updateBudgetDisplay()
+	local gui = player.PlayerGui:FindFirstChild("AntennaGUI")
+	if gui then
+		local budgetLabel = gui:FindFirstChild("MainFrame"):FindFirstChild("BudgetLabel")
+		if budgetLabel then
+			budgetLabel.Text = "Budget: $" .. string.format("%d", currentBudget)
+		end
+	end
+end
+
+-- User Input Handling
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if not gameStarted or gameProcessed then
 		return
@@ -181,28 +213,57 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			local mouse = player:GetMouse()
 			local ray = camera:ScreenPointToRay(mouse.X, mouse.Y)
 			local placedFolder = workspace:FindFirstChild("PlacedAntennas")
-			local filterList = {}
-			if placedFolder then
-				table.insert(filterList, placedFolder)
-			end
+			if not placedFolder then return end
+
 			local delParams = RaycastParams.new()
 			delParams.FilterType = Enum.RaycastFilterType.Include
-			delParams.FilterDescendantsInstances = filterList
-			local result = workspace:Raycast(ray.Origin, ray.Direction * 500, delParams)
+			delParams.FilterDescendantsInstances = {placedFolder}
+
+			local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, delParams)
 			if result and result.Instance then
-				local instance = result.Instance
-				while instance and instance.Parent ~= workspace:FindFirstChild("PlacedAntennas") do
-					instance = instance.Parent
+				local targetModel = result.Instance
+				while targetModel and targetModel.Parent ~= placedFolder do
+					targetModel = targetModel.Parent
 				end
-				if instance and instance.Parent == workspace:FindFirstChild("PlacedAntennas") then
-					deleteEvent:FireServer(instance.Name)
+
+				if targetModel and targetModel.Parent == placedFolder then
+					-- Identify antenna type via Attribute or Name
+					local typeName = targetModel:GetAttribute("AntennaType") or targetModel.Name
+					local refundCost = 0
+
+					for _, opt in ipairs(antennaOptions) do
+						if opt.modelName == typeName or string.find(targetModel.Name, opt.modelName) then
+							refundCost = opt.cost
+							break
+						end
+					end
+
+					if refundCost > 0 then
+						currentBudget = currentBudget + refundCost
+						updateBudgetDisplay()
+						print("[AntennaPlacer] Refunded: $" .. refundCost .. " | Current Budget: $" .. currentBudget)
+					else
+						warn("[AntennaPlacer] Could not determine antenna type for refund:", targetModel.Name)
+					end
+
+					deleteEvent:FireServer(targetModel.Name)
 				end
 			end
 		else
 			-- Only place if an antenna button is selected (blue)
 			if not antennaSelected then return end
+			local cost = getSelectedCost()
+
+			if currentBudget < cost then
+				warn("Not enough budget! Required cost: $" .. cost)
+				return
+			end
+
 			local pos = getMousePosition()
 			if pos then
+				currentBudget = currentBudget - cost
+				updateBudgetDisplay()
+				print("[Client] Placement request sent:", selectedAntenna, pos)
 				placeEvent:FireServer(selectedAntenna, pos, currentAngle)
 			end
 		end
@@ -221,7 +282,6 @@ end)
 
 -- GUI
 local function createGUI()
-	-- Remove existing GUI if re-created
 	local existingGui = player.PlayerGui:FindFirstChild("AntennaGUI")
 	if existingGui then
 		existingGui:Destroy()
@@ -233,46 +293,56 @@ local function createGUI()
 
 	local frame = Instance.new("Frame")
 	frame.Name = "MainFrame"
-	frame.Size = UDim2.new(0, 220, 0, 305)
-	frame.Position = UDim2.new(0, 15, 0.5, -155)
+	frame.Size = UDim2.new(0, 230, 0, 320) 
+	frame.Position = UDim2.new(0, 15, 0.5, -160)
 	frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 	frame.BackgroundTransparency = 0.2
 	frame.BorderSizePixel = 0
 	frame.Parent = gui
 
-	local frameCorner = Instance.new("UICorner")
-	frameCorner.CornerRadius = UDim.new(0, 12)
-	frameCorner.Parent = frame
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
 
+	-- Title
 	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, 0, 0, 30)
-	title.Position = UDim2.new(0, 0, 0, 0)
+	title.Size = UDim2.new(1, 0, 0, 26)
 	title.BackgroundTransparency = 1
 	title.Text = "Select Antenna"
 	title.TextColor3 = Color3.fromRGB(255, 255, 255)
 	title.Font = Enum.Font.GothamBold
-	title.TextSize = 16
+	title.TextSize = 15
 	title.Parent = frame
+
+	-- Budget Display
+	local budgetLabel = Instance.new("TextLabel")
+	budgetLabel.Name = "BudgetLabel"
+	budgetLabel.Size = UDim2.new(1, -20, 0, 20)
+	budgetLabel.Position = UDim2.new(0, 10, 0, 26)
+	budgetLabel.BackgroundTransparency = 1
+	budgetLabel.Text = "Budget: $" .. string.format("%d", currentBudget)
+	budgetLabel.TextColor3 = Color3.fromRGB(85, 255, 127)
+	budgetLabel.Font = Enum.Font.GothamBold
+	budgetLabel.TextSize = 14
+	budgetLabel.TextXAlignment = Enum.TextXAlignment.Left
+	budgetLabel.Parent = frame
 
 	local selectedButton = nil
 
-	for i, name in ipairs(antennaOptions) do
+	-- Antenna Selection Buttons
+	for i, opt in ipairs(antennaOptions) do
 		local button = Instance.new("TextButton")
-		button.Size = UDim2.new(1, -20, 0, 32)
-		button.Position = UDim2.new(0, 10, 0, 30 + (i - 1) * 35)
+		button.Size = UDim2.new(1, -20, 0, 28)
+		button.Position = UDim2.new(0, 10, 0, 52 + (i - 1) * 32)
 		button.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
 		button.TextColor3 = Color3.fromRGB(255, 255, 255)
 		button.Font = Enum.Font.Gotham
-		button.TextSize = 14
-		button.Text = name.displayName
+		button.TextSize = 12
+		button.Text = opt.displayName .. " ($" .. opt.cost .. ")"
 		button.BorderSizePixel = 0
 		button.AutoButtonColor = true
 		button.Parent = frame
 
-		local btnCorner = Instance.new("UICorner")
-		btnCorner.CornerRadius = UDim.new(0, 8)
-		btnCorner.Parent = button
-
+		Instance.new("UICorner", button).CornerRadius = UDim.new(0, 6)
+		
 		-- Highlight the first button by default
 		if i == 1 then
 			button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
@@ -302,7 +372,8 @@ local function createGUI()
 			selectedButton = button
 			antennaSelected = true
 
-			selectedAntenna = name.modelName
+			selectedAntenna = opt.modelName
+			print("[AntennaPlacer] Selection changed:", selectedAntenna)
 			createPreview()
 		end)
 	end
@@ -310,44 +381,40 @@ local function createGUI()
 	-- Rotation section
 	local rotLabel = Instance.new("TextLabel")
 	rotLabel.Name = "RotationLabel"
-	rotLabel.Size = UDim2.new(1, -20, 0, 24)
-	rotLabel.Position = UDim2.new(0, 10, 0, 175)
+	rotLabel.Size = UDim2.new(1, -20, 0, 18)
+	rotLabel.Position = UDim2.new(0, 10, 0, 186)
 	rotLabel.BackgroundTransparency = 1
 	rotLabel.Text = "Rotation: " .. currentAngle .. "°"
 	rotLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 	rotLabel.Font = Enum.Font.GothamBold
-	rotLabel.TextSize = 14
+	rotLabel.TextSize = 12
 	rotLabel.TextXAlignment = Enum.TextXAlignment.Left
 	rotLabel.Parent = frame
 
 	local rotHint = Instance.new("TextLabel")
-	rotHint.Size = UDim2.new(1, -20, 0, 18)
-	rotHint.Position = UDim2.new(0, 10, 0, 195)
+	rotHint.Size = UDim2.new(1, -20, 0, 14)
+	rotHint.Position = UDim2.new(0, 10, 0, 204)
 	rotHint.BackgroundTransparency = 1
-	rotHint.Text = "Press R to rotate right, Q to rotate left"
+	rotHint.Text = "Press R/Q to rotate"
 	rotHint.TextColor3 = Color3.fromRGB(140, 140, 140)
 	rotHint.Font = Enum.Font.Gotham
-	rotHint.TextSize = 11
+	rotHint.TextSize = 10
 	rotHint.TextXAlignment = Enum.TextXAlignment.Left
 	rotHint.Parent = frame
 
 	-- Rotate Left button
 	local rotLeftBtn = Instance.new("TextButton")
 	rotLeftBtn.Name = "RotLeftBtn"
-	rotLeftBtn.Size = UDim2.new(0, 95, 0, 28)
-	rotLeftBtn.Position = UDim2.new(0, 10, 0, 215)
+	rotLeftBtn.Size = UDim2.new(0, 100, 0, 26)
+	rotLeftBtn.Position = UDim2.new(0, 10, 0, 222)
 	rotLeftBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
 	rotLeftBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	rotLeftBtn.Font = Enum.Font.GothamBold
-	rotLeftBtn.TextSize = 13
-	rotLeftBtn.Text = "Left"
+	rotLeftBtn.TextSize = 11
+	rotLeftBtn.Text = "Left (Q)"
 	rotLeftBtn.BorderSizePixel = 0
-	rotLeftBtn.AutoButtonColor = true
 	rotLeftBtn.Parent = frame
-
-	local rotLeftCorner = Instance.new("UICorner")
-	rotLeftCorner.CornerRadius = UDim.new(0, 8)
-	rotLeftCorner.Parent = rotLeftBtn
+	Instance.new("UICorner", rotLeftBtn).CornerRadius = UDim.new(0, 6)
 
 	rotLeftBtn.MouseButton1Click:Connect(function()
 		if not deleteMode then
@@ -358,20 +425,16 @@ local function createGUI()
 	-- Rotate Right button
 	local rotRightBtn = Instance.new("TextButton")
 	rotRightBtn.Name = "RotRightBtn"
-	rotRightBtn.Size = UDim2.new(0, 95, 0, 28)
-	rotRightBtn.Position = UDim2.new(0, 110, 0, 215)
+	rotRightBtn.Size = UDim2.new(0, 100, 0, 26)
+	rotRightBtn.Position = UDim2.new(0, 115, 0, 222)
 	rotRightBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
 	rotRightBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	rotRightBtn.Font = Enum.Font.GothamBold
-	rotRightBtn.TextSize = 13
-	rotRightBtn.Text = "Right"
+	rotRightBtn.TextSize = 11
+	rotRightBtn.Text = "Right (R)"
 	rotRightBtn.BorderSizePixel = 0
-	rotRightBtn.AutoButtonColor = true
 	rotRightBtn.Parent = frame
-
-	local rotRightCorner = Instance.new("UICorner")
-	rotRightCorner.CornerRadius = UDim.new(0, 8)
-	rotRightCorner.Parent = rotRightBtn
+	Instance.new("UICorner", rotRightBtn).CornerRadius = UDim.new(0, 6)
 
 	rotRightBtn.MouseButton1Click:Connect(function()
 		if not deleteMode then
@@ -382,48 +445,36 @@ local function createGUI()
 	-- Delete mode toggle button
 	local deleteBtn = Instance.new("TextButton")
 	deleteBtn.Name = "DeleteButton"
-	deleteBtn.Size = UDim2.new(1, -20, 0, 32)
-	deleteBtn.Position = UDim2.new(0, 10, 0, 249)
+	deleteBtn.Size = UDim2.new(1, -20, 0, 28)
+	deleteBtn.Position = UDim2.new(0, 10, 0, 256)
 	deleteBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
 	deleteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	deleteBtn.Font = Enum.Font.GothamBold
-	deleteBtn.TextSize = 14
+	deleteBtn.TextSize = 12
 	deleteBtn.Text = "Delete Mode: OFF"
 	deleteBtn.BorderSizePixel = 0
-	deleteBtn.AutoButtonColor = true
 	deleteBtn.Parent = frame
-
-	local deleteBtnCorner = Instance.new("UICorner")
-	deleteBtnCorner.CornerRadius = UDim.new(0, 8)
-	deleteBtnCorner.Parent = deleteBtn
+	Instance.new("UICorner", deleteBtn).CornerRadius = UDim.new(0, 6)
 
 	deleteBtn.MouseButton1Click:Connect(function()
 		deleteMode = not deleteMode
 		if deleteMode then
 			deleteBtn.Text = "Delete Mode: ON"
 			deleteBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-			-- Hide preview when in delete mode
-			if preview then
-				preview.Parent = nil
-			end
 		else
 			deleteBtn.Text = "Delete Mode: OFF"
 			deleteBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-			-- Show preview again
-			if preview then
-				preview.Parent = workspace
-			end
 		end
 	end)
 
 	local deleteHint = Instance.new("TextLabel")
-	deleteHint.Size = UDim2.new(1, -20, 0, 18)
-	deleteHint.Position = UDim2.new(0, 10, 0, 283)
+	deleteHint.Size = UDim2.new(1, -20, 0, 14)
+	deleteHint.Position = UDim2.new(0, 10, 0, 288)
 	deleteHint.BackgroundTransparency = 1
 	deleteHint.Text = "Click placed antenna to delete"
 	deleteHint.TextColor3 = Color3.fromRGB(140, 140, 140)
 	deleteHint.Font = Enum.Font.Gotham
-	deleteHint.TextSize = 11
+	deleteHint.TextSize = 10
 	deleteHint.TextXAlignment = Enum.TextXAlignment.Left
 	deleteHint.Parent = frame
 end
@@ -431,8 +482,10 @@ end
 -- Start game
 startEvent.OnClientEvent:Connect(function()
 	gameStarted = true
+	selectedAntenna = "Antenna1"
 	currentAngle = 0
 	deleteMode = false
+	currentBudget = INITIAL_BUDGET
 	createGUI()
 	createPreview()
 end)
