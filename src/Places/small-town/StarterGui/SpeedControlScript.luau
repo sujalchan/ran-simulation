@@ -217,6 +217,11 @@ game.ReplicatedStorage.StartGame.OnClientEvent:Connect(function()
 	setBaseSpeed(130)
 end)
 
+-- Reset speed to default when game resets
+game.ReplicatedStorage.ResetGame.OnClientEvent:Connect(function()
+	setBaseSpeed(MIN_SPEED)
+end)
+
 -- Apply initial speed
 local character = player.Character
 if character then

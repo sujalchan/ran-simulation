@@ -9,6 +9,7 @@ local camera = workspace.CurrentCamera
 local startEvent = ReplicatedStorage:WaitForChild("StartGame")
 local placeEvent = ReplicatedStorage:WaitForChild("PlaceAntenna")
 local deleteEvent = ReplicatedStorage:WaitForChild("DeleteAntenna")
+local resetEvent = ReplicatedStorage:WaitForChild("ResetGame")
 local antennaFolder = ReplicatedStorage:WaitForChild("AntennaModels")
 
 local gameStarted = false
@@ -112,7 +113,7 @@ local function createPreview()
 	-- Get the model's original rotation
 	local pivot = preview:GetPivot()
 	originalModelRotation = pivot - pivot.Position
-	
+
 	-- Place model at origin with original rotation to compute base info
 	preview:PivotTo(originalModelRotation)
 
@@ -162,7 +163,7 @@ RunService.RenderStepped:Connect(function()
 		-- Rotate the offset from base center to pivot by current angle
 		local rotCF = CFrame.Angles(0, math.rad(currentAngle), 0)
 		local rotatedOffset = rotCF * baseToPivotOffset
-		
+
 		-- Position pivot such that base center is at the mouse position
 		local pivotPos = pos + rotatedOffset
 		preview:PivotTo(CFrame.new(pivotPos) * rotCF * originalModelRotation)
@@ -342,7 +343,7 @@ local function createGUI()
 		button.Parent = frame
 
 		Instance.new("UICorner", button).CornerRadius = UDim.new(0, 6)
-		
+
 		-- Highlight the first button by default
 		if i == 1 then
 			button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
@@ -467,7 +468,7 @@ local function createGUI()
 		end
 	end)
 
-	local deleteHint = Instance.new("TextLabel")
+		local deleteHint = Instance.new("TextLabel")
 	deleteHint.Size = UDim2.new(1, -20, 0, 14)
 	deleteHint.Position = UDim2.new(0, 10, 0, 288)
 	deleteHint.BackgroundTransparency = 1
@@ -477,6 +478,27 @@ local function createGUI()
 	deleteHint.TextSize = 10
 	deleteHint.TextXAlignment = Enum.TextXAlignment.Left
 	deleteHint.Parent = frame
+
+	-- Reset / Exit button
+	local resetBtn = Instance.new("TextButton")
+	resetBtn.Name = "ResetButton"
+	resetBtn.Size = UDim2.new(1, -20, 0, 30)
+	resetBtn.Position = UDim2.new(0, 10, 0, 308)
+	resetBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+	resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	resetBtn.Font = Enum.Font.GothamBold
+	resetBtn.TextSize = 13
+	resetBtn.Text = "Reset / Exit game"
+	resetBtn.BorderSizePixel = 0
+	resetBtn.Parent = frame
+	Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(0, 6)
+
+	resetBtn.MouseButton1Click:Connect(function()
+		resetEvent:FireServer()
+	end)
+
+	-- Adjust frame height to fit the new button
+	frame.Size = UDim2.new(0, 230, 0, 350)
 end
 
 -- Start game
@@ -488,4 +510,28 @@ startEvent.OnClientEvent:Connect(function()
 	currentBudget = INITIAL_BUDGET
 	createGUI()
 	createPreview()
+end)
+
+-- Handle reset from server
+resetEvent.OnClientEvent:Connect(function()
+	gameStarted = false
+	selectedAntenna = "Antenna1"
+	currentAngle = 0
+	deleteMode = false
+	antennaSelected = true
+	currentBudget = INITIAL_BUDGET
+
+	-- Destroy preview
+	if preview then
+		preview:Destroy()
+		preview = nil
+	end
+
+	-- Destroy AntennaGUI
+	local gui = player.PlayerGui:FindFirstChild("AntennaGUI")
+	if gui then
+		gui:Destroy()
+	end
+
+	print("[AntennaPlacer] Game reset complete.")
 end)

@@ -211,3 +211,10 @@ end)
 -- Request initial count on load
 task.wait(1)
 npcSpawnEvent:FireServer("getCount")
+
+-- Reset NPC slider to 0 when game resets
+game.ReplicatedStorage.ResetGame.OnClientEvent:Connect(function()
+	currentCount = 0
+	lastSentCount = 0
+	updateSlider(0)
+end)
