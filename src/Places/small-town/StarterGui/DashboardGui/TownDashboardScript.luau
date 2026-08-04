@@ -15,30 +15,11 @@ local townFrame = dashboardGui:WaitForChild("TownFrame")
 dashboardGui.Enabled = true
 townFrame.Visible = true
 
--- hide unwanted ui elements
-local metricsContainer = townFrame:FindFirstChild("MetricsContainer")
-if metricsContainer then
-	local cardQuality = metricsContainer:FindFirstChild("Card_Quality")
-	if cardQuality then cardQuality.Visible = false end
-
-	local cardTower = metricsContainer:FindFirstChild("Card_Tower")
-	if cardTower then
-		local capacityBar = cardTower:FindFirstChild("CapacityBar")
-		if capacityBar then capacityBar.Visible = false end
-		local capacityText = cardTower:FindFirstChild("CapacityText")
-		if capacityText then capacityText.Visible = false end
-		local statusBadge = cardTower:FindFirstChild("StatusBadge")
-		if statusBadge then statusBadge.Visible = false end
-	end
-end
-
-local insightLabel = townFrame:FindFirstChild("InsightLabel")
-if insightLabel then insightLabel.Visible = false end
-
 -- find ui elements
 local function findUIElements()
 	local ui = {}
 
+	local metricsContainer = townFrame:FindFirstChild("MetricsContainer")
 	if not metricsContainer then
 		warn("metrics container not found")
 		return ui
@@ -92,12 +73,9 @@ RunService.RenderStepped:Connect(function()
 	if not humanoidRootPart then return end
 
 	-- read attributes from the player
-	local towerName = player:GetAttribute("ConnectedTower") or "searching..."
+	local towerName = player:GetAttribute("ConnectedTower") or "Searching..."
 	local rsrp = player:GetAttribute("RSRP") or -120
 	local towerDistance = player:GetAttribute("TowerDistance") or 0
-
-	-- debug: print what we're reading
-	print("dashboard: tower=", towerName, "rsrp=", rsrp, "distance=", towerDistance)
 
 	-- update signal strength
 	if ui.signalValue then
@@ -122,8 +100,8 @@ RunService.RenderStepped:Connect(function()
 
 	-- update tower distance
 	if ui.towerDetails then
-		ui.towerDetails.Text = "distance: " .. math.floor(towerDistance) .. "m"
+		ui.towerDetails.Text = "Distance: " .. math.floor(towerDistance) .. "m"
 	end
 end)
 
-print("small town dashboard loaded")
+print("Small Town dashboard loaded!")
