@@ -38,6 +38,36 @@ for i = 1, 5 do
 	bars[i] = barsContainer:WaitForChild("Bar" .. i)
 end
 
+-- calculate signal from closest antenna
+local function getAntennaSignal()
+	local antennas = {
+		workspace:FindFirstChild("OmniPart"),
+		workspace:FindFirstChild("DirectionalPart"),
+		workspace:FindFirstChild("MainPart"), -- NarrowBeam
+	}
+
+	local character = player.Character
+	if not character then return -120 end
+
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not hrp then return -120 end
+
+	local closestDist = math.huge
+	local closestSignal = -120
+
+	for _, antenna in ipairs(antennas) do
+		if antenna then
+			local dist = (hrp.Position - antenna.Position).Magnitude			if dist < closestDist then
+				closestDist = dist
+				closestSignal = -50 - (dist / 5)
+				closestSignal = math.max(-120, math.min(-50, closestSignal))
+			end
+		end
+	end
+
+	return math.floor(closestSignal)
+end
+
 local function updateVisibility()
 	room2Frame.Visible =
 		player:GetAttribute("InRoomTwo") == true
@@ -55,7 +85,8 @@ local function updateRoom2(
 	tiltAngle,
 	antennaType,
 	azimuth,
-	elevation
+	elevation,
+	sourceType
 )
 	antennaTypeLabel.Text =
 		"📡 Antenna Type: " .. antennaType
@@ -65,6 +96,10 @@ local function updateRoom2(
 
 	tiltAngleLabel.Text =
 		"📐 Tilt Angle: " .. tiltAngle .. "°"
+
+	if sourceTypeLabel then
+		sourceTypeLabel.Text = "📡 Source: " .. (sourceType or "Unknown")
+	end
 
 	local narrowBeam = antennaType == "NarrowBeam"
 
@@ -125,14 +160,14 @@ local function updateRoom2(
 end
 
 RunService.RenderStepped:Connect(function()
-	local rsrp = player:GetAttribute("RSRP") or -120
+	local rsrp = getAntennaSignal()
 	local beamWidth = player:GetAttribute("BeamWidth") or 60
 	local tiltAngle = player:GetAttribute("TiltAngle") or 0
 	local antennaType =
 		player:GetAttribute("AntennaType") or "Omnidirectional"
-
 	local azimuth = player:GetAttribute("Azimuth") or 0
 	local elevation = player:GetAttribute("Elevation") or 0
+	local sourceType = player:GetAttribute("SourceType") or nil
 
 	updateRoom2(
 		rsrp,
@@ -140,6 +175,9 @@ RunService.RenderStepped:Connect(function()
 		tiltAngle,
 		antennaType,
 		azimuth,
-		elevation
+		elevation,
+		sourceType
 	)
 end)
+
+print("Room 2 dashboard loaded!")
