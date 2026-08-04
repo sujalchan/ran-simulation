@@ -16,7 +16,6 @@ local npcCount = 0
 local baseSignalValue = -120
 
 -- room visibility
-
 local VISIBLE_POSITION = UDim2.new(0.01, 0, 0.02, 0)
 local HIDDEN_POSITION = UDim2.new(-0.5, 0, 0.02, 0)
 
@@ -64,7 +63,6 @@ player:GetAttributeChangedSignal("InRoomTwo"):Connect(updateDashboardVisibility)
 updateDashboardVisibility()
 
 -- npc count
-
 if npcSpawnEvent then
 	npcSpawnEvent.OnClientEvent:Connect(function(...)
 		local args = { ... }
@@ -81,7 +79,6 @@ if npcSpawnEvent then
 end
 
 -- ui elements
-
 local metricsContainer = room1Frame:WaitForChild("MetricsContainer")
 
 local cardSignal = metricsContainer:WaitForChild("Card_Signal")
@@ -240,7 +237,6 @@ if slider then
 end
 
 -- room 1 ui updates
-
 local function updateSignalBars(rsrp)
 	local barCount =
 		rsrp >= -60 and 5
@@ -277,7 +273,6 @@ local function updateUI(rsrp, sinr, materialName, towerDistance)
 	updateSignalBars(rsrp)
 
 	-- SIGNAL QUALITY (SINR) UI
-	
 	local qualityPercent = sinr / 20
 
 	qualityValue.Text = sinr .. " dB"
@@ -326,7 +321,6 @@ local function updateUI(rsrp, sinr, materialName, towerDistance)
 	end
 
 	-- material experiment
-
 	if materialName == "SignalSource" then
 		materialName = "None"
 	end
@@ -376,3 +370,5 @@ RunService.RenderStepped:Connect(function()
 
 	updateUI(rsrp, sinr, materialName, towerDistance)
 end)
+
+print("Room 1 dashboard loaded!")
