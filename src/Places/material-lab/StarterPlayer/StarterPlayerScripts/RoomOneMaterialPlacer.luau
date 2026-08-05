@@ -16,7 +16,6 @@ local materialKeys = {
 	[Enum.KeyCode.Three] = "Wood",
 }
 
-
 local gridSize = 2
 local rotationY = 0
 
@@ -24,12 +23,15 @@ local previewPart = nil
 local currentPlacementCFrame = nil
 local placementEnabled = true
 
-local gridSize = 2
-
 local gridOffsetX = 1
 local gridOffsetZ = 1
-
 local minimumY = 1.432
+
+-- heatmap grid bounds
+local HEATMAP_MIN_X = 3
+local HEATMAP_MAX_X = 61
+local HEATMAP_MIN_Z = -33
+local HEATMAP_MAX_Z = 13
 
 local function snapY(value)
 	if value < minimumY then
@@ -60,7 +62,7 @@ local function createPreview()
 	local itemTemplate = placeableMaterials:FindFirstChild(selectedMaterialName)
 
 	if not itemTemplate then
-		warn("Could not find item:", selectedMaterialName)
+		warn("could not find item:", selectedMaterialName)
 		return
 	end
 
@@ -85,7 +87,33 @@ local function selectMaterial(materialName)
 	selectedMaterialName = materialName
 	createPreview()
 
-	print("Selected material:", selectedMaterialName)
+	print("selected material:", selectedMaterialName)
+end
+
+local function isPlayerOnHeatmap()
+	local character = player.Character
+	if not character then
+		return false
+	end
+
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return false
+	end
+
+	local pos = root.Position
+
+	local inRoomOne = player:GetAttribute("InRoomOne") == true
+	if not inRoomOne then
+		return false
+	end
+
+	local isOnHeatmap = pos.X >= HEATMAP_MIN_X
+		and pos.X <= HEATMAP_MAX_X
+		and pos.Z >= HEATMAP_MIN_Z
+		and pos.Z <= HEATMAP_MAX_Z
+
+	return isOnHeatmap
 end
 
 local function getPlacementCFrame()
@@ -93,28 +121,61 @@ local function getPlacementCFrame()
 		return nil
 	end
 
-	local camera = workspace.CurrentCamera
-	local mousePosition = UserInputService:GetMouseLocation()
+	-- get the heatmap grid folder
+	local heatmapGrid = workspace:FindFirstChild("HeatmapGrid")
+	if not heatmapGrid then
+		return nil
+	end
 
+	-- get the player's mouse position on screen
+	local mousePosition = UserInputService:GetMouseLocation()
+	local camera = workspace.CurrentCamera
+
+	-- cast ray from camera through mouse position
 	local cameraRay = camera:ViewportPointToRay(
 		mousePosition.X,
 		mousePosition.Y
 	)
 
-	local raycastParameters = RaycastParams.new()
-	raycastParameters.FilterType = Enum.RaycastFilterType.Exclude
-	raycastParameters.FilterDescendantsInstances = {
-		previewPart,
-		player.Character,
-	}
+	-- only hit heatmap tiles
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterType = Enum.RaycastFilterType.Include
+	raycastParams.FilterDescendantsInstances = {heatmapGrid}
 
 	local raycastResult = workspace:Raycast(
 		cameraRay.Origin,
 		cameraRay.Direction * 1000,
-		raycastParameters
+		raycastParams
 	)
 
 	if not raycastResult then
+		-- if the mouse ray doesn't hit a heatmap tile, cast it straight down from the player
+		local character = player.Character
+		if not character then
+			return nil
+		end
+
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if not root then
+			return nil
+		end
+
+		local origin = root.Position + Vector3.new(0, 10, 0)
+		local direction = Vector3.new(0, -20, 0)
+
+		local fallbackResult = workspace:Raycast(origin, direction, raycastParams)
+
+		if not fallbackResult then
+			return nil
+		end
+
+		raycastResult = fallbackResult
+	end
+
+	local hitPart = raycastResult.Instance
+	local isHeatmapTile = hitPart and hitPart.Parent and hitPart.Parent.Name == "HeatmapGrid"
+
+	if not isHeatmapTile then
 		return nil
 	end
 
@@ -136,6 +197,12 @@ local function placeItem()
 		return
 	end
 
+	if not isPlayerOnHeatmap() then
+		return
+	end
+
+	currentPlacementCFrame = getPlacementCFrame()
+
 	if not currentPlacementCFrame then
 		return
 	end
@@ -151,6 +218,17 @@ createPreview()
 RunService.RenderStepped:Connect(function()
 	if not placementEnabled or not previewPart then
 		return
+	end
+
+	if not isPlayerOnHeatmap() then
+		if previewPart.Parent then
+			previewPart.Parent = nil
+		end
+		return
+	else
+		if not previewPart.Parent then
+			previewPart.Parent = workspace
+		end
 	end
 
 	currentPlacementCFrame = getPlacementCFrame()
@@ -176,7 +254,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		placeItem()
 	elseif input.KeyCode == Enum.KeyCode.R then
 		rotationY = (rotationY + 90) % 360
-	elseif input.KeyCode == Enum.KeyCode.X then
+	elseif input.KeyCode == Enum.KeyCode.M then
 		placementEnabled = not placementEnabled
 
 		if previewPart then
@@ -184,3 +262,5 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 	end
 end)
+
+print("room one material placer loaded")
