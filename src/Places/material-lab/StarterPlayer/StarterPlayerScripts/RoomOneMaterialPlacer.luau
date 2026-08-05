@@ -121,26 +121,21 @@ local function getPlacementCFrame()
 		return nil
 	end
 
-	-- get the heatmap grid folder
-	local heatmapGrid = workspace:FindFirstChild("HeatmapGrid")
-	if not heatmapGrid then
-		return nil
-	end
-
-	-- get the player's mouse position on screen
 	local mousePosition = UserInputService:GetMouseLocation()
 	local camera = workspace.CurrentCamera
 
-	-- cast ray from camera through mouse position
 	local cameraRay = camera:ViewportPointToRay(
 		mousePosition.X,
 		mousePosition.Y
 	)
 
-	-- only hit heatmap tiles
+	-- exclude the preview part and the player's character
 	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Include
-	raycastParams.FilterDescendantsInstances = {heatmapGrid}
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	raycastParams.FilterDescendantsInstances = {
+		previewPart,
+		player.Character,
+	}
 
 	local raycastResult = workspace:Raycast(
 		cameraRay.Origin,
@@ -149,42 +144,72 @@ local function getPlacementCFrame()
 	)
 
 	if not raycastResult then
-		-- if the mouse ray doesn't hit a heatmap tile, cast it straight down from the player
-		local character = player.Character
-		if not character then
-			return nil
-		end
-
-		local root = character:FindFirstChild("HumanoidRootPart")
-		if not root then
-			return nil
-		end
-
-		local origin = root.Position + Vector3.new(0, 10, 0)
-		local direction = Vector3.new(0, -20, 0)
-
-		local fallbackResult = workspace:Raycast(origin, direction, raycastParams)
-
-		if not fallbackResult then
-			return nil
-		end
-
-		raycastResult = fallbackResult
+		return nil
 	end
 
 	local hitPart = raycastResult.Instance
+	local hitPosition = raycastResult.Position
+	local hitNormal = raycastResult.Normal
+
+	-- check if we hit a placed block (in levelonematerials)
+	local isPlacedBlock = hitPart and hitPart.Parent and hitPart.Parent.Name == "LevelOneMaterials"
+
+	-- check if we hit a heatmap tile
 	local isHeatmapTile = hitPart and hitPart.Parent and hitPart.Parent.Name == "HeatmapGrid"
 
-	if not isHeatmapTile then
+	if not isPlacedBlock and not isHeatmapTile then
 		return nil
 	end
 
 	local itemSize = previewPart.Size
+	local x, y, z
 
-	local x = snapToGrid(raycastResult.Position.X, gridOffsetX)
-	local z = snapToGrid(raycastResult.Position.Z, gridOffsetZ)
-	local desiredY = raycastResult.Position.Y + itemSize.Y / 2
-	local y = snapY(desiredY)
+	if isPlacedBlock then
+		-- placing on or next to an existing block
+		local blockPos = hitPart.Position
+		local blockSize = hitPart.Size
+
+		-- determine which face was hit using the normal
+		local normal = hitNormal
+		local absX = math.abs(normal.X)
+		local absY = math.abs(normal.Y)
+		local absZ = math.abs(normal.Z)
+
+		-- snap x and z to grid based on block position
+		x = snapToGrid(blockPos.X, gridOffsetX)
+		z = snapToGrid(blockPos.Z, gridOffsetZ)
+
+		if absY > absX and absY > absZ then
+			-- top or bottom face
+			local sign = math.sign(normal.Y)
+			y = blockPos.Y + sign * (blockSize.Y/2 + itemSize.Y/2)
+			y = snapY(y)
+		elseif absX > absZ then
+			-- left or right face
+			local sign = math.sign(normal.X)
+			x = blockPos.X + sign * (blockSize.X/2 + itemSize.X/2)
+			-- round x to grid
+			x = snapToGrid(x, gridOffsetX)
+			-- align y to block's y (same height)
+			y = blockPos.Y
+			y = snapY(y)
+		else
+			-- front or back face
+			local sign = math.sign(normal.Z)
+			z = blockPos.Z + sign * (blockSize.Z/2 + itemSize.Z/2)
+			-- round z to grid
+			z = snapToGrid(z, gridOffsetZ)
+			-- align y to block's y (same height)
+			y = blockPos.Y
+			y = snapY(y)
+		end
+	else
+		-- placing on the floor (heatmap tile)
+		x = snapToGrid(hitPosition.X, gridOffsetX)
+		z = snapToGrid(hitPosition.Z, gridOffsetZ)
+		local desiredY = hitPosition.Y + itemSize.Y / 2
+		y = snapY(desiredY)
+	end
 
 	local position = Vector3.new(x, y, z)
 	local rotation = CFrame.Angles(0, math.rad(rotationY), 0)

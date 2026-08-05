@@ -63,7 +63,6 @@ local function isPlayerOnHeatmap(player)
 end
 
 local function isPositionOnHeatmap(position)
-	-- check bounds only 
 	return position.X >= HEATMAP_MIN_X
 		and position.X <= HEATMAP_MAX_X
 		and position.Z >= HEATMAP_MIN_Z
@@ -98,9 +97,10 @@ placeMaterialEvent.OnServerEvent:Connect(function(player, materialName, cf)
 		return
 	end
 
+	-- snap x and z to grid, keep y as the client calculated it (for stacking)
 	local x = snap(cf.Position.X, GRID_OFFSET_X)
-	local y = snapY(cf.Position.Y)
 	local z = snap(cf.Position.Z, GRID_OFFSET_Z)
+	local y = snapY(cf.Position.Y)
 
 	local position = Vector3.new(x, y, z)
 
