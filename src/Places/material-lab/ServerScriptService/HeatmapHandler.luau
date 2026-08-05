@@ -75,9 +75,9 @@ local updatesPerFrame = 30
 -- how far away should count as max default 3500mhz
 local maxDistance = 30
 
-local raycastParams = RaycastParams.new()
-raycastParams.FilterType = Enum.RaycastFilterType.Include
-raycastParams.FilterDescendantsInstances = {levelOneMaterials}
+local overlapParams = OverlapParams.new()
+overlapParams.FilterType = Enum.RaycastFilterType.Include
+overlapParams.FilterDescendantsInstances = {levelOneMaterials}
 
 local ATTENUATION_SCALE = 0.01
 local SHADOW_FALLOFF_DISTANCE = 10
@@ -85,29 +85,64 @@ local TRANSMIT_POWER_DBM = -30
 local MINIMUM_RSRP_DBM = -120
 local MAXIMUM_RSRP_DBM = -50
 
+local materialPriority = {
+	Metal = 3,
+	Concrete = 2,
+	Wood = 1,
+}
+
+local function getPreferredMaterial(origin, target)
+	local direction = target - origin
+	local length = direction.Magnitude
+
+	local cframe = CFrame.lookAt(origin + direction / 2, target)
+
+	local parts = workspace:GetPartBoundsInBox(
+		cframe,
+		Vector3.new(0.2, 0.2, length),
+		overlapParams
+	)
+
+	local bestPart = nil
+	local bestPriority = 0
+
+	for _, part in ipairs(parts) do
+		local priority = materialPriority[part.Name] or 0
+
+		if priority > bestPriority then
+			bestPriority = priority
+			bestPart = part
+		end
+	end
+
+	return bestPart
+end
+
 local function calculateRSRPDbm(tilePosition, antenna)
 	local distance = (tilePosition - antenna.Position).Magnitude
 	distance = math.max(distance, 1)
-	
+
 	local distanceRatio = math.clamp(distance / maxDistance, 0, 1)
-	
+
 	local rsrpDbm = MAXIMUM_RSRP_DBM
 		+ distanceRatio * (MINIMUM_RSRP_DBM - MAXIMUM_RSRP_DBM)
 	
+	-- already at the minimum, so attenuation can't change the heatmap
+	if rsrpDbm <= MINIMUM_RSRP_DBM then
+		return rsrpDbm
+	end
+
+
 	local rayOrigin = tilePosition + Vector3.new(0, 1, 0)
 	local rayDirection = antenna.Position - rayOrigin
-	
-	local raycastResult = workspace:Raycast(
-		rayOrigin,
-		rayDirection,
-		raycastParams
-	)
-	
-	if raycastResult then
-		local hitPart = raycastResult.Instance
-		local attenuation = hitPart:GetAttribute("Attenuation") or 0
 
-		local distanceFromMaterial = raycastResult.Distance
+	local raycastResult = getPreferredMaterial(rayOrigin, antenna.Position)
+
+	if raycastResult then
+		local attenuation = raycastResult:GetAttribute("Attenuation") or 0
+		
+		local distanceFromMaterial = (rayOrigin - raycastResult.Position).Magnitude
+		
 		local shadowStrength = math.exp(
 			-distanceFromMaterial / SHADOW_FALLOFF_DISTANCE
 		)
