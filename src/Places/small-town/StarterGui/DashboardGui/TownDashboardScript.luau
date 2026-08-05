@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 
 -- wait for character
@@ -14,6 +15,25 @@ local townFrame = dashboardGui:WaitForChild("TownFrame")
 -- make dashboard visible
 dashboardGui.Enabled = true
 townFrame.Visible = true
+
+-- NPC count tracking
+local npcSpawnEvent = ReplicatedStorage:FindFirstChild("NPCSpawnEvent")
+local npcCount = 0
+
+if npcSpawnEvent then
+	npcSpawnEvent.OnClientEvent:Connect(function(...)
+		local args = { ... }
+
+		if args[1] == "countUpdate" then
+			npcCount = args[2] or 0
+		elseif type(args[1]) == "number" then
+			npcCount = args[1]
+		end
+	end)
+
+	task.wait(1)
+	npcSpawnEvent:FireServer("getCount")
+end
 
 -- find ui elements
 local function findUIElements()
@@ -35,10 +55,18 @@ local function findUIElements()
 	if cardTower then
 		ui.towerName = cardTower:FindFirstChild("TowerName")
 		ui.towerDetails = cardTower:FindFirstChild("TowerDetails")
+		-- find capacity related elements in the town tower card
+		ui.capacityText = cardTower:FindFirstChild("CapacityText")
+		ui.capacityFill = cardTower:FindFirstChild("CapacityBar")
+		if ui.capacityFill then
+			ui.capacityFill = ui.capacityFill:FindFirstChild("CapacityFill")
+		end
+		ui.towerBadge = cardTower:FindFirstChild("StatusBadge")
 	end
 
 	return ui
 end
+
 
 local ui = findUIElements()
 
@@ -51,7 +79,7 @@ if ui.barsContainer then
 	end
 end
 
--- update signal bars
+-- update functions
 local function updateSignalBars(rsrp)
 	local barCount = rsrp >= -60 and 5
 		or rsrp >= -70 and 4
@@ -101,6 +129,43 @@ RunService.RenderStepped:Connect(function()
 	-- update tower distance
 	if ui.towerDetails then
 		ui.towerDetails.Text = "Distance: " .. math.floor(towerDistance) .. "m"
+	end
+	
+	-- update tower load
+	local userCount = 1 + npcCount
+	local loadPercent
+
+	if npcCount > 0 then
+		loadPercent = math.min(95, (userCount / 500) * 100)
+	else
+		loadPercent = math.max(5, 50 - towerDistance / 5)
+	end
+
+	if ui.capacityText then
+		ui.capacityText.Text = userCount .. " / 50 users"
+		if loadPercent < 30 then
+			ui.capacityText.TextColor3 = Color3.fromRGB(46, 204, 113)
+		elseif loadPercent < 70 then
+			ui.capacityText.TextColor3 = Color3.fromRGB(243, 156, 18)
+		else
+			ui.capacityText.TextColor3 = Color3.fromRGB(231, 76, 60)
+		end
+	end
+	if ui.capacityFill then
+		ui.capacityFill.Size = UDim2.new(loadPercent / 100, 0, 1, 0)
+	end
+
+	if ui.towerBadge then
+		if loadPercent < 30 then
+			ui.towerBadge.Text = "📊 Light load"
+			ui.towerBadge.TextColor3 = Color3.fromRGB(46, 204, 113)
+		elseif loadPercent < 70 then
+			ui.towerBadge.Text = "📊 Medium load"
+			ui.towerBadge.TextColor3 = Color3.fromRGB(243, 156, 18)
+		else
+			ui.towerBadge.Text = "📊 Heavy load"
+			ui.towerBadge.TextColor3 = Color3.fromRGB(231, 76, 60)
+		end
 	end
 end)
 
