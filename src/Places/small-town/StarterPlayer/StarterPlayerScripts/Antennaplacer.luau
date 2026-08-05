@@ -25,15 +25,15 @@ local originalModelRotation = CFrame.identity
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
-local INITIAL_BUDGET = 100
+local INITIAL_BUDGET = 1000
 local currentBudget = INITIAL_BUDGET
 
 -- The 4 antenna options
 local antennaOptions = {
-	{displayName = "Antenna 1", modelName = "Antenna1", cost = 5},
-	{displayName = "Antenna 2", modelName = "Antenna2", cost = 10},
-	{displayName = "Antenna 3", modelName = "Antenna3", cost = 25},
-	{displayName = "Antenna 4", modelName = "Antenna4", cost = 50},
+	{displayName = "Rooftop Cell Site", modelName = "Antenna1", cost = 50},
+	{displayName = "Monopole Cell Tower", modelName = "Antenna2", cost = 100},
+	{displayName = "Panel Antenna Tower", modelName = "Antenna3", cost = 250},
+	{displayName = "Lattice Tower", modelName = "Antenna4", cost = 500},
 }
 
 local function getSelectedCost()
@@ -295,7 +295,7 @@ local function createGUI()
 	local frame = Instance.new("Frame")
 	frame.Name = "MainFrame"
 	frame.Size = UDim2.new(0, 230, 0, 320) 
-	frame.Position = UDim2.new(0, 15, 0.5, -160)
+	frame.Position = UDim2.new(1, -250, 0.5, -140)
 	frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 	frame.BackgroundTransparency = 0.2
 	frame.BorderSizePixel = 0
