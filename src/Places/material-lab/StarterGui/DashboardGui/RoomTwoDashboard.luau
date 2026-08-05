@@ -163,8 +163,7 @@ RunService.RenderStepped:Connect(function()
 	local rsrp = getAntennaSignal()
 	local beamWidth = player:GetAttribute("BeamWidth") or 60
 	local tiltAngle = player:GetAttribute("TiltAngle") or 0
-	local antennaType =
-		player:GetAttribute("AntennaType") or "Omnidirectional"
+	local antennaType =player:GetAttribute("ClosestSignalSource") or "Omnidirectional"
 	local azimuth = player:GetAttribute("Azimuth") or 0
 	local elevation = player:GetAttribute("Elevation") or 0
 	local sourceType = player:GetAttribute("SourceType") or nil
