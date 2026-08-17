@@ -32,8 +32,8 @@ local currentBudget = INITIAL_BUDGET
 local antennaOptions = {
 	{displayName = "Rooftop Cell Site", modelName = "Antenna1", cost = 50},
 	{displayName = "Monopole Cell Tower", modelName = "Antenna2", cost = 100},
-	{displayName = "Panel Antenna Tower", modelName = "Antenna3", cost = 250},
-	{displayName = "Lattice Tower", modelName = "Antenna4", cost = 500},
+	{displayName = "Panel Antenna Tower", modelName = "Antenna3", cost = 200},
+	{displayName = "Lattice Tower", modelName = "Antenna4", cost = 350},
 }
 
 local function getSelectedCost()
@@ -195,7 +195,7 @@ local function updateBudgetDisplay()
 	if gui then
 		local budgetLabel = gui:FindFirstChild("MainFrame"):FindFirstChild("BudgetLabel")
 		if budgetLabel then
-			budgetLabel.Text = "Budget: $" .. string.format("%d", currentBudget)
+			budgetLabel.Text = "Budget: $" .. string.format("%d", currentBudget) .. "k"
 		end
 	end
 end
@@ -242,7 +242,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 					if refundCost > 0 then
 						currentBudget = currentBudget + refundCost
 						updateBudgetDisplay()
-						print("[AntennaPlacer] Refunded: $" .. refundCost .. " | Current Budget: $" .. currentBudget)
+						print("[AntennaPlacer] Refunded: $" .. refundCost .. "k | Current Budget: $" .. currentBudget .. "k")
 					else
 						warn("[AntennaPlacer] Could not determine antenna type for refund:", targetModel.Name)
 					end
@@ -256,7 +256,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			local cost = getSelectedCost()
 
 			if currentBudget < cost then
-				warn("Not enough budget! Required cost: $" .. cost)
+				warn("Not enough budget! Required cost: $" .. cost .. "k")
 				return
 			end
 
@@ -280,6 +280,141 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 	end
 end)
+
+-- Show results popup based on coverage score
+local function showResultsPopup(coverage)
+	local playerGui = player.PlayerGui
+
+	-- Remove any existing results GUI
+	local existing = playerGui:FindFirstChild("ResultsGui")
+	if existing then existing:Destroy() end
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "ResultsGui"
+	gui.IgnoreGuiInset = true
+	gui.Parent = playerGui
+
+	-- Dark overlay
+	local overlay = Instance.new("Frame")
+	overlay.Size = UDim2.new(1, 0, 1, 0)
+	overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	overlay.BackgroundTransparency = 0.5
+	overlay.BorderSizePixel = 0
+	overlay.Parent = gui
+
+	-- Results panel
+	local panel = Instance.new("Frame")
+	panel.Size = UDim2.new(0, 400, 0, 300)
+	panel.Position = UDim2.new(0.5, -200, 0.5, -150)
+	panel.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	panel.BorderSizePixel = 0
+	panel.Parent = overlay
+
+	Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 16)
+
+	-- Rating based on coverage score 
+	local titleText, message, msgColor, barColor
+	if coverage >= 90 then
+		titleText = "Excellent!"
+		message = "Outstanding network coverage! Your city is fully connected."
+		msgColor = Color3.fromRGB(0, 255, 100)
+		barColor = Color3.fromRGB(0, 200, 100)
+	elseif coverage >= 75 then
+		titleText = "Great!"
+		message = "Most of the area has strong signal coverage."
+		msgColor = Color3.fromRGB(100, 255, 100)
+		barColor = Color3.fromRGB(80, 200, 80)
+	elseif coverage >= 50 then
+		titleText = "Good!"
+		message = "Half the area is covered. Try adding more antennas."
+		msgColor = Color3.fromRGB(255, 220, 0)
+		barColor = Color3.fromRGB(255, 200, 0)
+	elseif coverage >= 25 then
+		titleText = "Needs Work"
+		message = "Large parts of the map still lack signal."
+		msgColor = Color3.fromRGB(255, 170, 0)
+		barColor = Color3.fromRGB(255, 150, 0)
+	else
+		titleText = "Try Again!"
+		message = "Most of the area has no signal. Try again!"
+		msgColor = Color3.fromRGB(255, 80, 80)
+		barColor = Color3.fromRGB(255, 60, 60)
+	end
+
+	-- Title
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, 0, 0, 40)
+	title.Position = UDim2.new(0, 0, 0, 20)
+	title.BackgroundTransparency = 1
+	title.Text = titleText
+	title.TextColor3 = msgColor
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 28
+	title.Parent = panel
+
+	-- Coverage score
+	local scoreLabel = Instance.new("TextLabel")
+	scoreLabel.Size = UDim2.new(1, 0, 0, 30)
+	scoreLabel.Position = UDim2.new(0, 0, 0, 70)
+	scoreLabel.BackgroundTransparency = 1
+	scoreLabel.Text = string.format("Coverage Score: %d / 100", coverage)
+	scoreLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	scoreLabel.Font = Enum.Font.GothamBold
+	scoreLabel.TextSize = 20
+	scoreLabel.Parent = panel
+
+	-- Progress bar background
+	local barBg = Instance.new("Frame")
+	barBg.Size = UDim2.new(0, 340, 0, 16)
+	barBg.Position = UDim2.new(0.5, -170, 0, 110)
+	barBg.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+	barBg.BorderSizePixel = 0
+	barBg.Parent = panel
+
+	Instance.new("UICorner", barBg).CornerRadius = UDim.new(0, 8)
+
+	-- Progress bar fill
+	local barFill = Instance.new("Frame")
+	barFill.Size = UDim2.new(0, math.clamp(coverage / 100, 0, 1) * 340, 0, 16)
+	barFill.Position = UDim2.new(0, 0, 0, 0)
+	barFill.BorderSizePixel = 0
+	barFill.Parent = barBg
+
+	Instance.new("UICorner", barFill).CornerRadius = UDim.new(0, 8)
+
+	barFill.BackgroundColor3 = barColor
+
+	-- Message label
+	local msgLabel = Instance.new("TextLabel")
+	msgLabel.Size = UDim2.new(0, 340, 0, 60)
+	msgLabel.Position = UDim2.new(0.5, -170, 0, 140)
+	msgLabel.BackgroundTransparency = 1
+	msgLabel.Text = message
+	msgLabel.TextColor3 = msgColor
+	msgLabel.Font = Enum.Font.Gotham
+	msgLabel.TextSize = 15
+	msgLabel.TextWrapped = true
+	msgLabel.Parent = panel
+
+	-- OK button
+	local okBtn = Instance.new("TextButton")
+	okBtn.Size = UDim2.new(0, 160, 0, 40)
+	okBtn.Position = UDim2.new(0.5, -80, 0, 220)
+	okBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 210)
+	okBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	okBtn.Font = Enum.Font.GothamBold
+	okBtn.TextSize = 16
+	okBtn.Text = "OK"
+	okBtn.BorderSizePixel = 0
+	okBtn.Parent = panel
+
+	Instance.new("UICorner", okBtn).CornerRadius = UDim.new(0, 10)
+
+	okBtn.MouseButton1Click:Connect(function()
+		gui:Destroy()
+		resetEvent:FireServer()
+	end)
+end
 
 -- GUI
 local function createGUI()
@@ -319,7 +454,7 @@ local function createGUI()
 	budgetLabel.Size = UDim2.new(1, -20, 0, 20)
 	budgetLabel.Position = UDim2.new(0, 10, 0, 26)
 	budgetLabel.BackgroundTransparency = 1
-	budgetLabel.Text = "Budget: $" .. string.format("%d", currentBudget)
+	budgetLabel.Text = "Budget: $" .. string.format("%d", currentBudget) .. "k"
 	budgetLabel.TextColor3 = Color3.fromRGB(85, 255, 127)
 	budgetLabel.Font = Enum.Font.GothamBold
 	budgetLabel.TextSize = 14
@@ -337,7 +472,7 @@ local function createGUI()
 		button.TextColor3 = Color3.fromRGB(255, 255, 255)
 		button.Font = Enum.Font.Gotham
 		button.TextSize = 12
-		button.Text = opt.displayName .. " ($" .. opt.cost .. ")"
+		button.Text = opt.displayName .. " ($" .. opt.cost .. "k)"
 		button.BorderSizePixel = 0
 		button.AutoButtonColor = true
 		button.Parent = frame
@@ -488,13 +623,14 @@ local function createGUI()
 	resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	resetBtn.Font = Enum.Font.GothamBold
 	resetBtn.TextSize = 13
-	resetBtn.Text = "Reset / Exit game"
+	resetBtn.Text = "End Game"
 	resetBtn.BorderSizePixel = 0
 	resetBtn.Parent = frame
 	Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(0, 6)
 
 	resetBtn.MouseButton1Click:Connect(function()
-		resetEvent:FireServer()
+		local coverage = player:GetAttribute("CoverageScore") or 0
+		showResultsPopup(coverage)
 	end)
 
 	-- Adjust frame height to fit the new button
@@ -531,6 +667,12 @@ resetEvent.OnClientEvent:Connect(function()
 	local gui = player.PlayerGui:FindFirstChild("AntennaGUI")
 	if gui then
 		gui:Destroy()
+	end
+
+	-- Destroy ResultsGui if it exists
+	local resultsGui = player.PlayerGui:FindFirstChild("ResultsGui")
+	if resultsGui then
+		resultsGui:Destroy()
 	end
 
 	print("[AntennaPlacer] Game reset complete.")

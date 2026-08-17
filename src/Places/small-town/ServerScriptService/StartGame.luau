@@ -62,6 +62,15 @@ resetGame.OnServerEvent:Connect(function(player)
 		if humanoid then
 			humanoid.WalkSpeed = 16
 		end
+
+		-- Teleport player back to spawn location
+		local spawnLocation = workspace:FindFirstChild("SpawnLocation")
+		if spawnLocation then
+			local hrp = character:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				hrp.CFrame = CFrame.new(spawnLocation.Position + Vector3.new(0, 5, 0))
+			end
+		end
 	end
 
 	-- Re-enable the StartButton ProximityPrompt
@@ -80,4 +89,4 @@ resetGame.OnServerEvent:Connect(function(player)
 	if npcSpawnEvent then
 		npcSpawnEvent:FireClient(player, 0)
 	end
-end)
+end) 
