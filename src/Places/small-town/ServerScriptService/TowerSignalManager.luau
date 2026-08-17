@@ -8,18 +8,37 @@ if not cellTowersFolder then
 	return
 end
 
+local towerTypeMaxDistance = {
+	["Rooftop"]  = 20,
+	["Monopole"] = 40,
+	["Panel"]    = 60,
+	["Lattice"]  = 140,
+}
+
+local typeAliases = {
+	["AAU Rooftop"] = "Rooftop",
+	["Small Cell"]  = "Monopole",
+	["Macro"]       = "Lattice",
+	["Macro Tower"] = "Lattice",
+}
+
 -- all towers
 local towers = {}
 for _, child in ipairs(cellTowersFolder:GetChildren()) do
 	if child:IsA("Model") and child:FindFirstChild("SignalOrigin") then
 		local origin = child.SignalOrigin
+		local rawType = child:GetAttribute("TowerType") or "Rooftop"
+		local towerType = typeAliases[rawType] or rawType
+
+		local maxDist = towerTypeMaxDistance[towerType] or 20
+
 		table.insert(towers, {
 			Model = child,
 			Origin = origin,
 			Name = child:GetAttribute("TowerName") or child.Name,
-			TowerType = child:GetAttribute("TowerType") or "Macro",
+			TowerType = towerType,
 			MaxPower = child:GetAttribute("MaxPower") or -50,
-			MaxDistance = child:GetAttribute("MaxDistance") or 35
+			MaxDistance = maxDist
 		})
 	end
 end

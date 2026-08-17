@@ -13,6 +13,43 @@ local frequencyData = {
 }
 local DEFAULT_FREQUENCY = "2100 MHz"
 
+-- Default MaxDistance per TowerType 
+local towerTypeMaxDistance = {
+	["Rooftop"]      = 20,
+	["Monopole"]     = 40,
+	["Panel"]        = 60,
+	["Lattice"]      = 90,
+}
+
+local typeAliases = {
+	["AAU Rooftop"] = "Rooftop",
+	["Small Cell"]  = "Monopole",
+	["Macro"]       = "Lattice",
+	["Macro Tower"] = "Lattice",
+}
+
+local function getTowerType(model)
+	local rawType = model:GetAttribute("TowerType")
+	if not rawType then
+		local origin = model:FindFirstChild("SignalOrigin", true)
+		if origin then
+			rawType = origin:GetAttribute("TowerType")
+		end
+	end
+	
+	if rawType then
+		return typeAliases[rawType] or rawType
+	end
+	
+	return "Rooftop"
+end
+
+-- Get MaxDistance from a model
+local function getMaxDistance(model)
+	local towerType = getTowerType(model)
+	return towerTypeMaxDistance[towerType] or 20
+end
+
 -- Folder for visual spheres
 local visualFolder = Workspace:FindFirstChild("AllSignalVisuals")
 if not visualFolder then
@@ -64,8 +101,8 @@ local function collectCoverageSpheres()
 	local function processModel(model)
 		if not model:IsA("Model") then return end
 		local originPos = getSignalOriginPos(model)
-		local maxPower = model:GetAttribute("MaxPower") or -50
-		local outerRadius = calculateDistanceForRSRP(-100, maxPower, divisor)
+		local maxDistance = getMaxDistance(model)
+		local outerRadius = maxDistance * 10 * divisor
 		table.insert(spheres, { center = originPos, radius = outerRadius })
 	end
 
@@ -162,11 +199,12 @@ local function updateTowerVisuals()
 		-- Unique identifier key
 		local key = prefix .. "_" .. model.Name
 		local originPos = getSignalOriginPos(model)
-		local maxPower = model:GetAttribute("MaxPower") or -50
+		local maxDistance = getMaxDistance(model)
 
-		local innerRadius  = calculateDistanceForRSRP(-60,  maxPower, divisor) -- Green
-		local middleRadius = calculateDistanceForRSRP(-80,  maxPower, divisor) -- Yellow
-		local outerRadius  = calculateDistanceForRSRP(-100, maxPower, divisor) -- Red
+		-- Sphere sizes depend on the tower's MaxDistance 
+		local outerRadius  = maxDistance * 10  * divisor -- Red
+		local middleRadius = outerRadius * 0.65          -- Yellow
+		local innerRadius  = outerRadius * 0.35          -- Green
 
 		activeSpheres[key .. "_Inner"] = true
 		activeSpheres[key .. "_Middle"] = true
