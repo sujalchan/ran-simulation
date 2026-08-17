@@ -20,6 +20,14 @@ local validAntennas = {
 	Antenna4 = true,
 }
 
+-- Display name mapping for each antenna type
+local antennaDisplayNames = {
+	Antenna1 = "Rooftop",
+	Antenna2 = "Monopole",
+	Antenna3 = "Panel",
+	Antenna4 = "Lattice",
+}
+
 -- Track which player placed which antenna 
 local antennaOwners = {}
 
@@ -122,15 +130,16 @@ placeEvent.OnServerEvent:Connect(function(player, antennaName, position, rotatio
 	ownerTag.Value = player.Name
 	ownerTag.Parent = model
 
-	-- Give each placed antenna a unique name to avoid collisions
+	-- Give each placed antenna a unique display name
+	local displayType = antennaDisplayNames[antennaName] or antennaName
 	local count = 0
 	for _, child in placedFolder:GetChildren() do
-		if child.Name:match("^" .. antennaName) then
+		if child:GetAttribute("AntennaType") == antennaName then
 			count = count + 1
 		end
 	end
-	model.Name = antennaName .. "_" .. (count + 1)
-
+	model:SetAttribute("AntennaType", antennaName)
+	model.Name = displayType .. " - " .. (count + 1)
 	model.Parent = placedFolder
 	antennaOwners[model] = player
 

@@ -137,6 +137,74 @@ local function applyRandomColors(npc)
 	if rightLeg then rightLeg.Color = pantsColor end
 end
 
+-- Track NPC connections per tower name
+local towerConnections = {}
+
+-- Find the nearest placed antenna to a position
+local function findNearestTower(position)
+	local nearestTowerName = nil
+	local nearestDist = math.huge
+
+	local function checkFolder(folder)
+		if not folder then return end
+		for _, model in folder:GetChildren() do
+			if model:IsA("Model") then
+				local origin = model:FindFirstChild("SignalOrigin", true)
+				if origin and origin:IsA("BasePart") then
+					local dist = (position - origin.Position).Magnitude
+					if dist < nearestDist then
+						nearestDist = dist
+						nearestTowerName = model.Name
+					end
+				end
+			end
+		end
+	end
+
+	checkFolder(Workspace:FindFirstChild("CellTowers"))
+	checkFolder(Workspace:FindFirstChild("PlacedAntennas"))
+
+	return nearestTowerName
+end
+
+-- Update NPCConnections attribute on all towers and antennas
+local function updateTowerConnectionAttributes()
+	local function updateFolder(folder)
+		if not folder then return end
+		for _, model in folder:GetChildren() do
+			if model:IsA("Model") then
+				local count = towerConnections[model.Name] or 0
+				model:SetAttribute("NPCConnections", count)
+			end
+		end
+	end
+	updateFolder(Workspace:FindFirstChild("CellTowers"))
+	updateFolder(Workspace:FindFirstChild("PlacedAntennas"))
+end
+
+-- Re-evaluate all NPC connections 
+local function reevaluateNPCConnections()
+	if not npcFolder then return end
+	for _, npc in npcFolder:GetChildren() do
+		local hrp = npc:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			local oldTower = npc:GetAttribute("ConnectedTower")
+			local newTower = findNearestTower(hrp.Position)
+			if newTower and newTower ~= oldTower then
+				if oldTower and towerConnections[oldTower] then
+					towerConnections[oldTower] = towerConnections[oldTower] - 1
+					if towerConnections[oldTower] <= 0 then
+						towerConnections[oldTower] = nil
+					end
+				end
+				npc:SetAttribute("ConnectedTower", newTower)
+				towerConnections[newTower] = (towerConnections[newTower] or 0) + 1
+			end
+		end
+	end
+	updateTowerConnectionAttributes()
+end
+
 local function spawnNPC(spawnCenter)
 	if not npcTemplate or not npcFolder then return end
 	if #npcFolder:GetChildren() >= MAX_NPCS then return end
@@ -150,6 +218,17 @@ local function spawnNPC(spawnCenter)
 	local spawnPos = getRandomSpawnPosition(spawnCenter or SPAWN_CENTER)
 	npc:PivotTo(CFrame.new(spawnPos))
 	npc.Parent = npcFolder
+
+	-- Find nearest tower and track connection
+	local npcHRP = npc:FindFirstChild("HumanoidRootPart")
+	if npcHRP then
+		local nearestTower = findNearestTower(npcHRP.Position)
+		if nearestTower then
+			npc:SetAttribute("ConnectedTower", nearestTower)
+			towerConnections[nearestTower] = (towerConnections[nearestTower] or 0) + 1
+			updateTowerConnectionAttributes()
+		end
+	end
 
 	-- Simple wandering behavior
 	task.spawn(function()
@@ -200,6 +279,15 @@ local function removeNPC()
 	local npcs = npcFolder:GetChildren()
 	if #npcs > 0 then
 		local npc = npcs[#npcs]
+		-- Update tower connection count
+		local towerName = npc:GetAttribute("ConnectedTower")
+		if towerName and towerConnections[towerName] then
+			towerConnections[towerName] = towerConnections[towerName] - 1
+			if towerConnections[towerName] <= 0 then
+				towerConnections[towerName] = nil
+			end
+			updateTowerConnectionAttributes()
+		end
 		npc.Parent = nil
 	end
 end
@@ -267,5 +355,33 @@ if npcFolder then
 		applyCollisionGroupToNPC(existingNPC)
 	end
 end
+
+-- Re-evaluate NPC connections when antennas are placed or removed
+local placedFolder = Workspace:FindFirstChild("PlacedAntennas")
+if placedFolder then
+	placedFolder.ChildAdded:Connect(function()
+		reevaluateNPCConnections()
+	end)
+	placedFolder.ChildRemoved:Connect(function()
+		reevaluateNPCConnections()
+	end)
+end
+
+-- Clear connections on game reset
+ReplicatedStorage.ResetGame.OnServerEvent:Connect(function()
+	if npcFolder then
+		for _, npc in npcFolder:GetChildren() do
+			local towerName = npc:GetAttribute("ConnectedTower")
+			if towerName and towerConnections[towerName] then
+				towerConnections[towerName] = towerConnections[towerName] - 1
+				if towerConnections[towerName] <= 0 then
+					towerConnections[towerName] = nil
+				end
+			end
+		end
+	end
+	table.clear(towerConnections)
+	updateTowerConnectionAttributes()
+end)
 
 print("NPC Spawner system loaded! Max NPCs: " .. MAX_NPCS)

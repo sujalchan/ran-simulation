@@ -12,6 +12,7 @@ local frequencyData = {
 	["3500 MHz"] = { divisor = 0.5 }
 }
 local DEFAULT_FREQUENCY = "2100 MHz"
+local MAX_POWER = -40  -- Maximum RSRP at distance 0
 
 -- Default MaxDistance per TowerType 
 local towerTypeMaxDistance = {
@@ -36,11 +37,11 @@ local function getTowerType(model)
 			rawType = origin:GetAttribute("TowerType")
 		end
 	end
-	
+
 	if rawType then
 		return typeAliases[rawType] or rawType
 	end
-	
+
 	return "Rooftop"
 end
 
@@ -59,6 +60,8 @@ if not visualFolder then
 end
 
 local isVisible = false 
+
+-- Forward declaration so the refresh loop can call it
 local updateCoverageDisplay
 
 -- Map boundaries

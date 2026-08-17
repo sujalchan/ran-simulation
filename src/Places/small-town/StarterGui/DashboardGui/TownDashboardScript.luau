@@ -96,74 +96,140 @@ local function updateSignalBars(rsrp)
 	end
 end
 
+local function clearSignalBars()
+	for i = 1, 5 do
+		local bar = bars[i]
+		if bar then
+			bar.BackgroundTransparency = 0.7
+		end
+	end
+end
+
 -- main update loop
 RunService.RenderStepped:Connect(function()
 	if not humanoidRootPart then return end
 
-	-- read attributes from the player
-	local towerName = player:GetAttribute("ConnectedTower") or "Searching..."
-	local rsrp = player:GetAttribute("RSRP") or -120
-	local towerDistance = player:GetAttribute("TowerDistance") or 0
+	local placedAntennaName = player:GetAttribute("PlacedAntennaName")
+	local placedSignal = player:GetAttribute("PlacedAntennaSignal")
+	local placedNPCLoad = player:GetAttribute("PlacedAntennaNPCLoad") or 0
+	local placedInRange = player:GetAttribute("PlacedAntennaInRange")
 
-	-- update signal strength
-	if ui.signalValue then
-		ui.signalValue.Text = rsrp .. " dBm"
+	if placedAntennaName then
+		local rsrp = placedSignal or -120
 
-		if rsrp >= -70 then
-			ui.signalValue.TextColor3 = Color3.fromRGB(46, 204, 113)
-		elseif rsrp >= -90 then
-			ui.signalValue.TextColor3 = Color3.fromRGB(243, 156, 18)
+		if placedInRange then
+			-- In range
+			if ui.signalValue then
+				ui.signalValue.Text = rsrp .. " dBm"
+
+				if rsrp >= -70 then
+					ui.signalValue.TextColor3 = Color3.fromRGB(46, 204, 113)
+				elseif rsrp >= -90 then
+					ui.signalValue.TextColor3 = Color3.fromRGB(243, 156, 18)
+				else
+					ui.signalValue.TextColor3 = Color3.fromRGB(231, 76, 60)
+				end
+			end
+
+			updateSignalBars(rsrp)
+
+			if ui.towerName then
+				ui.towerName.Text = placedAntennaName
+				ui.towerName.TextColor3 = Color3.fromRGB(255, 255, 255)
+			end
+
+			if ui.towerDetails then
+				ui.towerDetails.Text = "Load: " .. placedNPCLoad .. " NPCs"
+			end
+
+			local maxNPCs = 50
+			local loadPercent = math.clamp((placedNPCLoad / maxNPCs) * 100, 0, 100)
+
+			if ui.capacityText then
+				ui.capacityText.Text = placedNPCLoad .. " / 50 NPCs"
+				if loadPercent < 30 then
+					ui.capacityText.TextColor3 = Color3.fromRGB(46, 204, 113)
+				elseif loadPercent < 70 then
+					ui.capacityText.TextColor3 = Color3.fromRGB(243, 156, 18)
+				else
+					ui.capacityText.TextColor3 = Color3.fromRGB(231, 76, 60)
+				end
+			end
+			if ui.capacityFill then
+				ui.capacityFill.Size = UDim2.new(loadPercent / 100, 0, 1, 0)
+			end
+
+			if ui.towerBadge then
+				if loadPercent < 30 then
+					ui.towerBadge.Text = "📊 Light load"
+					ui.towerBadge.TextColor3 = Color3.fromRGB(46, 204, 113)
+				elseif loadPercent < 70 then
+					ui.towerBadge.Text = "📊 Medium load"
+					ui.towerBadge.TextColor3 = Color3.fromRGB(243, 156, 18)
+				else
+					ui.towerBadge.Text = "📊 Heavy load"
+					ui.towerBadge.TextColor3 = Color3.fromRGB(231, 76, 60)
+				end
+			end
 		else
-			ui.signalValue.TextColor3 = Color3.fromRGB(231, 76, 60)
+			-- Out of Range
+			if ui.signalValue then
+				ui.signalValue.Text = "-- dBm"
+				ui.signalValue.TextColor3 = Color3.fromRGB(120, 120, 120)
+			end
+
+			clearSignalBars()
+
+			if ui.towerName then
+				ui.towerName.Text = "--- Out of Range ---"
+				ui.towerName.TextColor3 = Color3.fromRGB(120, 120, 120)
+			end
+
+			if ui.towerDetails then
+				ui.towerDetails.Text = "No signal"
+			end
+
+			if ui.capacityText then
+				ui.capacityText.Text = "-- / 50 NPCs"
+				ui.capacityText.TextColor3 = Color3.fromRGB(120, 120, 120)
+			end
+			if ui.capacityFill then
+				ui.capacityFill.Size = UDim2.new(0, 0, 1, 0)
+			end
+
+			if ui.towerBadge then
+				ui.towerBadge.Text = "⚠ Out of Range"
+				ui.towerBadge.TextColor3 = Color3.fromRGB(231, 76, 60)
+			end
 		end
-	end
-
-	-- update signal bars
-	updateSignalBars(rsrp)
-
-	-- update tower name
-	if ui.towerName then
-		ui.towerName.Text = towerName
-	end
-
-	-- update tower distance
-	if ui.towerDetails then
-		ui.towerDetails.Text = "Distance: " .. math.floor(towerDistance) .. "m"
-	end
-	
-	-- update tower load
-	local userCount = 1 + npcCount
-	local loadPercent
-
-	if npcCount > 0 then
-		loadPercent = math.min(95, (userCount / 500) * 100)
 	else
-		loadPercent = math.max(5, 50 - towerDistance / 5)
-	end
-
-	if ui.capacityText then
-		ui.capacityText.Text = userCount .. " / 50 users"
-		if loadPercent < 30 then
-			ui.capacityText.TextColor3 = Color3.fromRGB(46, 204, 113)
-		elseif loadPercent < 70 then
-			ui.capacityText.TextColor3 = Color3.fromRGB(243, 156, 18)
-		else
-			ui.capacityText.TextColor3 = Color3.fromRGB(231, 76, 60)
+		-- No antenna data at all (no towers or placed antennas found)
+		if ui.signalValue then
+			ui.signalValue.Text = "-- dBm"
+			ui.signalValue.TextColor3 = Color3.fromRGB(120, 120, 120)
 		end
-	end
-	if ui.capacityFill then
-		ui.capacityFill.Size = UDim2.new(loadPercent / 100, 0, 1, 0)
-	end
 
-	if ui.towerBadge then
-		if loadPercent < 30 then
-			ui.towerBadge.Text = "📊 Light load"
-			ui.towerBadge.TextColor3 = Color3.fromRGB(46, 204, 113)
-		elseif loadPercent < 70 then
-			ui.towerBadge.Text = "📊 Medium load"
-			ui.towerBadge.TextColor3 = Color3.fromRGB(243, 156, 18)
-		else
-			ui.towerBadge.Text = "📊 Heavy load"
+		clearSignalBars()
+
+		if ui.towerName then
+			ui.towerName.Text = "--- Out of Range ---"
+			ui.towerName.TextColor3 = Color3.fromRGB(120, 120, 120)
+		end
+
+		if ui.towerDetails then
+			ui.towerDetails.Text = "No signal"
+		end
+
+		if ui.capacityText then
+			ui.capacityText.Text = "-- / 50 NPCs"
+			ui.capacityText.TextColor3 = Color3.fromRGB(120, 120, 120)
+		end
+		if ui.capacityFill then
+			ui.capacityFill.Size = UDim2.new(0, 0, 1, 0)
+		end
+
+		if ui.towerBadge then
+			ui.towerBadge.Text = "⚠ Out of Range"
 			ui.towerBadge.TextColor3 = Color3.fromRGB(231, 76, 60)
 		end
 	end
