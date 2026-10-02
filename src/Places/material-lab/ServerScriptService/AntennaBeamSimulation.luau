@@ -1,3 +1,11 @@
+--[[
+    Antenna Beam Simulation
+
+    Server-side material-lab visualization for antenna direction and beam
+    settings. It receives UpdateAntennaEvent data and builds or updates the
+    corresponding beam representation in the world.
+]]
+
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -15,6 +23,7 @@ local colors = {
 	Color3.fromRGB(0, 0, 255),
 }
 
+-- maps a normalized beam-strength value across the configured color gradient
 local function numberToColor(value)
 	value = math.clamp(value, 0, 1)
 
@@ -32,6 +41,7 @@ local function numberToColor(value)
 	)
 end
 
+-- creates the antenna and sampled beam visualization described by settings
 local function createDirectionalBeam(settings)
 	local antenna = Instance.new("Part")
 	antenna.Name = settings.partName
@@ -49,7 +59,11 @@ local function createDirectionalBeam(settings)
 	visualizationFolder.Name = settings.folderName
 	visualizationFolder.Parent = Workspace
 
+	-- convert a world-space sample point into a 0..1 visualization strength based on its beam offset.
+	-- angles are measured in antenna-local space, then horizontal and vertical off-axis penalties
+	-- reduce the configured peak gain down to its front-to-back floor.
 	local function pointStrength(worldPosition)
+		-- express the sample point relative to the antenna so its orientation defines the beam axes
 		local localPosition =
 			antenna.CFrame:PointToObjectSpace(worldPosition)
 
@@ -70,6 +84,7 @@ local function createDirectionalBeam(settings)
 			math.asin(localDirection.Y)
 		)
 
+		-- reduce peak gain quadratically as the sample moves off-center in either angle
 		local maxGain = 15.4
 		local gainFloor =
 			maxGain - settings.frontToBackRatio
@@ -89,6 +104,7 @@ local function createDirectionalBeam(settings)
 
 		local finalGain = math.max(gain, gainFloor)
 
+		-- normalize bounded gain to 0..1 for point placement and color interpolation
 		return math.clamp(
 			(finalGain - gainFloor)
 				/ (maxGain - gainFloor),
@@ -97,6 +113,7 @@ local function createDirectionalBeam(settings)
 		)
 	end
 
+	-- sample directions over a sphere using latitude (phi) and longitude (theta) angles
 	for latitudeIndex = 0, settings.density do
 		local phi =
 			math.pi * latitudeIndex / settings.density
@@ -281,7 +298,7 @@ do
 			math.asin(direction.Y)
 		)
 
-		-- vertical antenna pattern
+		-- this visual model varies gain with vertical angle and uses no horizontal pattern
 		local maxGain = 8
 		local verticalBeamwidth = 30
 		local gainFloor = -15
@@ -292,6 +309,7 @@ do
 
 		local finalGain = math.max(gain, gainFloor)
 
+		-- normalize gain between its floor and peak to a strength used by the visualization
 		return math.clamp(
 			(finalGain - gainFloor) / (maxGain - gainFloor),
 			0,
@@ -303,6 +321,7 @@ do
 	visualizationFolder.Name = "OmniVisualization"
 	visualizationFolder.Parent = Workspace
 
+	-- sample the surrounding sphere by stepping through latitude and longitude angles
 	for latitudeIndex = 0, density do
 		local phi = math.pi * latitudeIndex / density
 
@@ -350,6 +369,7 @@ local validAntennaTypes = {
 	NarrowBeam = true,
 }
 
+-- receives antenna type, elevation, and azimuth values from the local slider controls
 updateAntennaEvent.OnServerEvent:Connect(function(
 	player,
 	antennaType,

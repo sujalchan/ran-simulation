@@ -1,3 +1,11 @@
+--[[
+    Antenna Server
+
+    Server-side small-town handler for PlaceAntenna and DeleteAntenna requests.
+    It validates antenna templates and placement data, positions owned models,
+    and only deletes an antenna when its recorded owner requests it.
+]]
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
@@ -31,10 +39,10 @@ local antennaDisplayNames = {
 -- Track which player placed which antenna 
 local antennaOwners = {}
 
--- Calculate the lowest Y-coordinate of the model to correctly position the antenna on the ground
+-- transforms part corners into world space to find the model's lowest Y extent for placement
 local function computeBaseCenter(model)
 	local lowestY = math.huge
-	-- First pass: find lowest Y among all corners
+	-- inspect all eight corners of each part because rotated parts can extend beyond their centers
 	for _, part in model:GetDescendants() do
 		if part:IsA("BasePart") then
 			local cf = part.CFrame
@@ -52,7 +60,7 @@ local function computeBaseCenter(model)
 		end
 	end
 
-	-- Second pass: find X/Z center at the base level
+	-- use bottom corners near the lowest extent to center the model's base footprint horizontally
 	local minX, maxX = math.huge, -math.huge
 	local minZ, maxZ = math.huge, -math.huge
 
@@ -81,6 +89,7 @@ local function computeBaseCenter(model)
 	return Vector3.new((minX + maxX) / 2, lowestY, (minZ + maxZ) / 2)
 end
 
+-- handles client placement requests with an antenna key, target position, and rotation angle
 placeEvent.OnServerEvent:Connect(function(player, antennaName, position, rotationAngle)
 	-- Validate antenna name
 	if type(antennaName) ~= "string" or not validAntennas[antennaName] then
@@ -147,6 +156,7 @@ placeEvent.OnServerEvent:Connect(function(player, antennaName, position, rotatio
 end)
 
 -- Handle antenna deletion
+-- accepts the placed model's instance name and checks its recorded owner
 deleteEvent.OnServerEvent:Connect(function(player, antennaInstanceName)
 	if type(antennaInstanceName) ~= "string" then
 		warn("[AntennaServer] Invalid delete request from", player.Name)

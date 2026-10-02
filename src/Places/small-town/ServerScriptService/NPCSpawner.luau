@@ -1,3 +1,11 @@
+--[[
+    NPC Spawner
+
+    Server-side small-town NPC lifecycle and tower-load controller. It spawns
+    and removes NPCs on NPCSpawnEvent requests, assigns collision and appearance,
+    tracks nearby tower connections, and reports counts to clients.
+]]
+
 local Players = game:GetService("Players")
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -10,6 +18,7 @@ PhysicsService:RegisterCollisionGroup("NPC")
 PhysicsService:CollisionGroupSetCollidable("NPC", "NPC", false)
 PhysicsService:CollisionGroupSetCollidable("NPC", "Default", true)
 
+-- assigns every BasePart in an NPC model to the NPC collision group
 local function applyCollisionGroupToNPC(npc)
 	for _, part in npc:GetDescendants() do
 		if part:IsA("BasePart") then
@@ -65,10 +74,12 @@ local PANTS_COLORS = {
 	Color3.fromRGB(135, 45, 135),
 }
 
+-- samples a ground position near the requested center and checks NPC spacing
 local function getRandomSpawnPosition(centerPos)
 	local maxAttempts = 10
 
 	for attempt = 1, maxAttempts do
+		-- choose a random angle and radius, then convert polar coordinates to world X/Z
 		local angle = math.random() * math.pi * 2
 		local distance = math.random(1, SPAWN_RADIUS)
 		local x = centerPos.X + math.cos(angle) * distance
@@ -117,6 +128,7 @@ local function getRandomSpawnPosition(centerPos)
 	return
 end
 
+-- assigns a random shirt color to torso and arms and pants color to legs
 local function applyRandomColors(npc)
 	local shirtColor = SHIRT_COLORS[math.random(1, #SHIRT_COLORS)]
 	local pantsColor = PANTS_COLORS[math.random(1, #PANTS_COLORS)]
@@ -205,6 +217,7 @@ local function reevaluateNPCConnections()
 	updateTowerConnectionAttributes()
 end
 
+-- clones, positions, colors, and starts the wandering behavior for an NPC
 local function spawnNPC(spawnCenter)
 	if not npcTemplate or not npcFolder then return end
 	if #npcFolder:GetChildren() >= MAX_NPCS then return end
@@ -274,6 +287,7 @@ local function spawnNPC(spawnCenter)
 	return npc
 end
 
+-- removes one NPC and updates the connection count associated with its tower
 local function removeNPC()
 	if not npcFolder then return end
 	local npcs = npcFolder:GetChildren()
@@ -292,12 +306,14 @@ local function removeNPC()
 	end
 end
 
+-- returns the number of children currently in the NPC folder
 local function getNPCCount()
 	if not npcFolder then return 0 end
 	return #npcFolder:GetChildren()
 end
 
 -- Handle client requests
+-- accepts an action and optional target count, then sends the resulting count to clients
 npcSpawnEvent.OnServerEvent:Connect(function(player, action, targetCount)
 	if action == "add" then
 		-- Spawn around the requesting player's character

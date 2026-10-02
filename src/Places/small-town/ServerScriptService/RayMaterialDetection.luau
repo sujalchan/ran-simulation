@@ -1,3 +1,11 @@
+--[[
+    Town Material Detection
+
+    Server-side small-town sampler that raycasts from each player toward their
+    nearest cell tower through attenuation zones and updates material, signal
+    loss, and connected-tower attributes for the dashboard.
+]]
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -57,6 +65,7 @@ local function getClosestTower(origin)
 	return closestTower
 end
 
+-- raycasts toward the nearest tower and publishes the hit zone and tower details
 local function updatePlayerMaterial(player)
 	local character = player.Character
 	if not character then return end

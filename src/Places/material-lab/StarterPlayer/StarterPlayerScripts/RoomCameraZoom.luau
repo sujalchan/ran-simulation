@@ -1,3 +1,10 @@
+--[[
+    Room Camera Zoom
+
+    Client-side material-lab camera controller. It tweens the local player's
+    zoom when the server changes the InRoomOne attribute.
+]]
+
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
@@ -17,6 +24,7 @@ local TWEEN_INFO = TweenInfo.new(
 
 local currentTween 
 
+-- tweens both camera zoom limits and optionally restores saved limits after completion
 local function tweenCameraZoom(targetZoom, restoreNormalLimits)
 	if currentTween then
 		currentTween:Cancel()
@@ -50,6 +58,7 @@ local function tweenCameraZoom(targetZoom, restoreNormalLimits)
 	end)
 end
 
+-- selects the close or normal camera zoom from the InRoomOne attribute
 local function updateCameraZoom()
 	local inRoomOne = player:GetAttribute("InRoomOne") == true
 	

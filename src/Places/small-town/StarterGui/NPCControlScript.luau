@@ -1,3 +1,10 @@
+--[[
+    NPC Control
+
+    Client-side small-town NPC count slider. It sends requested counts and
+    initial count queries through NPCSpawnEvent and reflects server updates.
+]]
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -135,6 +142,7 @@ local lastSentCount = 0
 local isHovering = false
 local isDragging = false
 
+-- marks antenna placement unavailable while the player is using this control panel
 local function updatePlacementState()
 	-- Disable placement if hovering OR dragging
 	local canPlace = not (isHovering or isDragging)
@@ -152,6 +160,7 @@ mainFrame.MouseLeave:Connect(function()
 	updatePlacementState()
 end)
 
+-- clamps the NPC count and updates the slider position and label
 local function updateSlider(count)
 	count = math.clamp(count, 0, MAX_NPCS)
 	currentCount = count
@@ -161,6 +170,7 @@ local function updateSlider(count)
 	countLabel.Text = tostring(count)
 end
 
+-- sends a changed requested count to the server through NPCSpawnEvent
 local function sendCountToServer(count)
 	if count ~= lastSentCount then
 		lastSentCount = count

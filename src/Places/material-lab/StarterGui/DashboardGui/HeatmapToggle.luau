@@ -1,3 +1,10 @@
+--[[
+    Heatmap Toggle
+
+    Client-side material-lab dashboard control that switches the displayed
+    heatmap type between RSRP and SINR through ToggleHeatmapEvent.
+]]
+
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
@@ -20,6 +27,7 @@ heatmapButton.MouseLeave:Connect(function()
 	heatmapButton.BackgroundTransparency = 0.3
 end)
 
+-- switches the requested heatmap mode and updates the button label
 heatmapButton.MouseButton1Click:Connect(function()
 	showingSINR = not showingSINR
 

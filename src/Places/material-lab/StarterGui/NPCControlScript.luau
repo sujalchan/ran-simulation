@@ -1,3 +1,10 @@
+--[[
+    NPC Control
+
+    Client-side material-lab NPC count control. It sends desired counts to the
+    server through NPCSpawnEvent and updates its displayed count from responses.
+]]
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -129,6 +136,7 @@ local currentCount = 0
 local isDragging = false
 local lastSentCount = 0
 
+-- clamps the displayed NPC count and moves the slider to its corresponding position
 local function updateSlider(count)
 	count = math.clamp(count, 0, MAX_NPCS)
 	currentCount = count
@@ -138,6 +146,7 @@ local function updateSlider(count)
 	countLabel.Text = tostring(count)
 end
 
+-- sends a changed requested NPC count through NPCSpawnEvent
 local function sendCountToServer(count)
 	if count ~= lastSentCount then
 		lastSentCount = count

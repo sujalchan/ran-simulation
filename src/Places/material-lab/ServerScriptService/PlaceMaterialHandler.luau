@@ -1,3 +1,11 @@
+--[[
+    Place Material Handler
+
+    Server-side material-lab receiver for PlaceItemEvent. It checks the player's
+    room and placement bounds, snaps the submitted transform to the grid, and
+    parents an allowed material clone into LevelOneMaterials.
+]]
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
@@ -23,19 +31,24 @@ local HEATMAP_MAX_X = 61
 local HEATMAP_MIN_Z = -33
 local HEATMAP_MAX_Z = 13
 
+-- rounds a horizontal coordinate to the configured placement grid
 local function snap(value, offset)
+	-- subtract the grid origin, round to the nearest step, then restore the offset
 	return math.round((value - offset) / GRID_SIZE) * GRID_SIZE + offset
 end
 
+-- aligns a vertical placement coordinate to the stack grid above its minimum height
 local function snapY(value)
 	if value < MINIMUM_Y then
 		return MINIMUM_Y
 	end
 
+	-- represent height as a level above the floor, round it, then convert the level back to Y
 	local level = math.round((value - MINIMUM_Y) / GRID_SIZE)
 	return MINIMUM_Y + level * GRID_SIZE
 end
 
+-- checks the player’s room attribute and character position against the placement area
 local function isPlayerOnHeatmap(player)
 	local character = player.Character
 	if not character then
@@ -62,6 +75,7 @@ local function isPlayerOnHeatmap(player)
 	return isOnHeatmap
 end
 
+-- checks whether a proposed placement coordinate is inside the heatmap bounds
 local function isPositionOnHeatmap(position)
 	return position.X >= HEATMAP_MIN_X
 		and position.X <= HEATMAP_MAX_X
@@ -69,6 +83,7 @@ local function isPositionOnHeatmap(position)
 		and position.Z <= HEATMAP_MAX_Z
 end
 
+-- receives a material key and proposed placement CFrame from the client preview tool
 placeMaterialEvent.OnServerEvent:Connect(function(player, materialName, cf)
 	if typeof(materialName) ~= "string" then
 		return

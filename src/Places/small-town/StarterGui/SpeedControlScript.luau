@@ -1,3 +1,10 @@
+--[[
+    Speed Control
+
+    Client-side small-town speed slider. It updates the local character's
+    Humanoid speed and responds to StartGame and ResetGame RemoteEvents.
+]]
+
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 
@@ -137,6 +144,7 @@ local isSprinting = false
 local isHovering = false
 local isDragging = false
 
+-- marks antenna placement unavailable while the player is using this control panel
 local function updatePlacementState()
 	-- Disable placement if hovering OR dragging
 	local canPlace = not (isHovering or isDragging)
@@ -154,6 +162,7 @@ mainFrame.MouseLeave:Connect(function()
 	updatePlacementState()
 end)
 
+-- clamps the base speed and updates the slider position and value label
 local function updateSlider(speed)
 	speed = math.clamp(speed, MIN_SPEED, MAX_SPEED)
 	currentSpeed = speed
@@ -163,6 +172,7 @@ local function updateSlider(speed)
 	countLabel.Text = tostring(math.round(speed))
 end
 
+-- applies the selected base speed, including the sprint multiplier when active
 local function applySpeed()
 	local character = player.Character
 	if character then
@@ -177,6 +187,7 @@ local function applySpeed()
 	end
 end
 
+-- updates the slider state and applies the selected speed to the character
 local function setBaseSpeed(speed)
 	updateSlider(speed)
 	applySpeed()

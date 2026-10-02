@@ -1,3 +1,11 @@
+--[[
+    Antenna Placer
+
+    Client-side small-town placement interface for previewing, rotating,
+    placing, and deleting antennas. It communicates placement and deletion
+    requests through ReplicatedStorage RemoteEvents and displays coverage data.
+]]
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -36,6 +44,7 @@ local antennaOptions = {
 	{displayName = "Lattice Tower", modelName = "Antenna4", cost = 350},
 }
 
+-- returns the configured price for the currently selected antenna type
 local function getSelectedCost()
 	for _, opt in ipairs(antennaOptions) do
 		if opt.modelName == selectedAntenna then
@@ -45,7 +54,7 @@ local function getSelectedCost()
 	return 0
 end
 
--- Calculate the center of the base (bottom face) of the antenna model
+-- transforms each part's bounding-box corners into world space to find the model's lowest Y extent
 local function computeBaseCenter(model)
 	local lowestY = math.huge
 	-- First pass: find lowest Y among all corners
@@ -66,7 +75,7 @@ local function computeBaseCenter(model)
 		end
 	end
 
-	-- Second pass: find X and Z center at the base level
+	-- use bottom-face corners near that lowest extent to find the horizontal center of the footprint
 	local minX, maxX = math.huge, -math.huge
 	local minZ, maxZ = math.huge, -math.huge
 
@@ -173,6 +182,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- Rotate preview left or right by 90 degrees
+-- rotates the local preview by one quarter turn in the supplied direction
 local function rotatePreview(direction)
 	if direction == "left" then
 		currentAngle = (currentAngle - 90) % 360

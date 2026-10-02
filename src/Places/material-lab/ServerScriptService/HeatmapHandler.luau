@@ -1,3 +1,11 @@
+--[[
+    Heatmap Handler
+
+    Server-side material-lab heatmap generator. It estimates RSRP and SINR at
+    grid tiles from antenna distance, configured attenuation, and interference,
+    then responds to frequency and heatmap-type RemoteEvents.
+]]
+
 local RunService = game:GetService("RunService")
 local replicatedStorage = game:GetService("ReplicatedStorage")
 local frequencyChangedEvent = replicatedStorage:WaitForChild("FrequencyChangedEvent")
@@ -32,6 +40,7 @@ local STARTPOSITION = Vector3.new(32, 0.5, -10)
 -- function to convert a value to a color
 local NOISEAMOUNT = 0.02
 
+-- maps a normalized heatmap value to a red-to-green color with slight visual variation
 local function valueToColour(value)
 	value = value + rng:NextNumber(-NOISEAMOUNT, NOISEAMOUNT)
 	value = math.clamp(value, 0, 1)
@@ -91,6 +100,9 @@ local materialPriority = {
 	Wood = 1,
 }
 
+-- finds the highest-priority placed material in a thin box aligned between the tile and antenna.
+-- the box follows the segment's direction and length; materialPriority chooses one hit if
+-- multiple placed blocks intersect that volume.
 local function getPreferredMaterial(origin, target)
 	local direction = target - origin
 	local length = direction.Magnitude
@@ -118,10 +130,15 @@ local function getPreferredMaterial(origin, target)
 	return bestPart
 end
 
+-- estimates a tile's signal for one antenna using this heatmap's simplified distance mapping.
+-- distance maps linearly across maxDistance from the configured near value to the far value;
+-- the selected material loss is then scaled down exponentially with tile-to-material distance.
 local function calculateRSRPDbm(tilePosition, antenna)
 	local distance = (tilePosition - antenna.Position).Magnitude
+	-- avoid a zero-distance edge case before mapping distance onto the configured range
 	distance = math.max(distance, 1)
 
+	-- scale distance from 0 to 1, then interpolate between the simulation's near and far signal bounds
 	local distanceRatio = math.clamp(distance / maxDistance, 0, 1)
 
 	local rsrpDbm = MAXIMUM_RSRP_DBM
@@ -136,6 +153,7 @@ local function calculateRSRPDbm(tilePosition, antenna)
 	local rayOrigin = tilePosition + Vector3.new(0, 1, 0)
 	local rayDirection = antenna.Position - rayOrigin
 
+	-- use the configured material priority to choose one obstacle loss for this path
 	local raycastResult = getPreferredMaterial(rayOrigin, antenna.Position)
 
 	if raycastResult then
@@ -143,6 +161,7 @@ local function calculateRSRPDbm(tilePosition, antenna)
 		
 		local distanceFromMaterial = (rayOrigin - raycastResult.Position).Magnitude
 		
+		-- make this obstacle's attenuation weaker as the tile gets farther from it
 		local shadowStrength = math.exp(
 			-distanceFromMaterial / SHADOW_FALLOFF_DISTANCE
 		)
@@ -153,6 +172,7 @@ local function calculateRSRPDbm(tilePosition, antenna)
 	return rsrpDbm
 end
 
+-- maps the simulation’s RSRP range to a normalized heatmap color value
 local function rsrpToValue(rsrpDbm)
 	return math.clamp(
 		(rsrpDbm - MINIMUM_RSRP_DBM)
@@ -162,6 +182,7 @@ local function rsrpToValue(rsrpDbm)
 	)
 end
 
+-- recalculates one randomly selected tile using the strongest configured antenna signal
 local function updateRSRP()
 	local randomIndex = rng:NextInteger(1, #heatmapTiles)
 	local randomTile = heatmapTiles[randomIndex]
@@ -183,10 +204,12 @@ local function updateRSRP()
 	randomTile.Color = valueToColour(heatValue)
 end
 
+-- converts a dBm signal value to milliwatts for SINR power arithmetic
 local function dBmToMilliwatts(dBm)
 	return 10 ^ (dBm / 10)
 end
 
+-- converts a linear power ratio into decibels
 local function milliwattsToDb(milliwatts)
 	return 10 * math.log10(milliwatts)
 end
@@ -196,6 +219,7 @@ local NOISE_FLOOR_DBM = -104
 local MINIMUM_SINR_DB = -10
 local MAXIMUM_SINR_DB = 30
 
+-- maps the configured SINR range to a normalized heatmap color value
 local function sinrToValue(sinrDb)
 	return math.clamp(
 		(sinrDb - MINIMUM_SINR_DB)
@@ -206,6 +230,7 @@ local function sinrToValue(sinrDb)
 end
 
 
+-- updates one random tile using the strongest antenna against other signals and noise
 local function updateSINR()
 	local randomIndex = rng:NextInteger(1, #heatmapTiles)
 	local randomTile = heatmapTiles[randomIndex]
@@ -259,11 +284,13 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
+-- receives the selected band and its configured range from the room-one slider
 frequencyChangedEvent.OnServerEvent:Connect(function(player, frequencyBand, newMaxDistance)
 	maxDistance = newMaxDistance
 	print("Max distance changed to:", maxDistance)
 end)
 
+-- receives the requested display metric so subsequent tile updates use that mode
 toggleHeatmapEvent.OnServerEvent:Connect(function(player, update)
 	showingSINR = (update == "SINR")
 	print("Heatmap toggled to:", update)

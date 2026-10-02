@@ -1,3 +1,11 @@
+--[[
+    Cell Tower Visualizer
+
+    Client-side small-town coverage display. Builds local signal-range spheres
+    for fixed towers and player-placed antennas, estimates map coverage, and
+    updates a toggle and coverage indicator using the player's frequency.
+]]
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -29,6 +37,7 @@ local typeAliases = {
 	["Macro Tower"] = "Lattice",
 }
 
+-- resolves a tower model attribute or SignalOrigin attribute to the visualizer type
 local function getTowerType(model)
 	local rawType = model:GetAttribute("TowerType")
 	if not rawType then
@@ -72,8 +81,9 @@ local MAP_BOUNDS = {
 	maxZ = 698
 }
 
--- Calculate signal distance
+-- estimates the visualization radius that corresponds to a target simulated RSRP
 local function calculateDistanceForRSRP(targetRSRP, maxPower, divisor)
+	-- invert the visualizer's distance scaling and keep a minimum visible radius
 	local scaledDist = (maxPower - targetRSRP) * divisor
 	return math.max(10, scaledDist * 10)
 end
@@ -126,12 +136,13 @@ local function collectCoverageSpheres()
 	return spheres
 end
 
--- Calculate coverage percentage using grid sampling
+-- estimate map coverage with grid sampling: each point counts once if it is inside any outer sphere.
+-- the returned percentage reflects the 50-by-50 sample grid rather than continuous map area.
 local function calculateCoverage()
 	local redSpheres = collectCoverageSpheres()
 	if #redSpheres == 0 then return 0 end
 
-	-- Grid sampling: 50x50 grid
+	-- sample cell centers across the map; a point counts when it falls inside any tower's outer sphere
 	local gridSize = 50
 	local totalPoints = gridSize * gridSize
 	local coveredPoints = 0
@@ -143,6 +154,7 @@ local function calculateCoverage()
 	for i = 0, gridSize - 1 do
 		local x = MAP_BOUNDS.minX + stepX * (i + 0.5)
 		for j = 0, gridSize - 1 do
+			-- offset by half a cell so samples sit at cell centers instead of map edges
 			local z = MAP_BOUNDS.minZ + stepZ * (j + 0.5)
 			local point = Vector3.new(x, groundY, z)
 
@@ -156,6 +168,7 @@ local function calculateCoverage()
 		end
 	end
 
+	-- convert the covered sample fraction to a rounded percentage for the dashboard
 	return math.floor((coveredPoints / totalPoints) * 100 + 0.5)
 end
 

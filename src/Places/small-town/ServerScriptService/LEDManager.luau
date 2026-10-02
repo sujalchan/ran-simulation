@@ -1,3 +1,10 @@
+--[[
+    LED Manager
+
+    Server-side small-town lighting script that finds marked LED SelectionBoxes
+    and updates their visibility as Lighting.TimeOfDay changes.
+]]
+
 -- Consolidated LED Manager
 -- Replaces 68 individual LED scripts with a single script
 
@@ -20,6 +27,7 @@ for _, obj in ipairs(workspace:GetDescendants()) do
 	end
 end
 
+-- shows marked LED selection boxes during the configured nighttime hours
 local function updateLEDs()
 	local timeOfDay = Lighting.TimeOfDay
 	local isNight = timeOfDay >= "18:00:00" or timeOfDay < "06:00:00"

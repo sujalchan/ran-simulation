@@ -1,3 +1,11 @@
+--[[
+    Antenna Slider Controls
+
+    Client-side material-lab controls for antenna azimuth and elevation. The
+    sliders update local UI state and send supported settings through
+    UpdateAntennaEvent while room and antenna attributes control visibility.
+]]
+
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -53,6 +61,7 @@ local activeSlider = nil
 local isHovering = false
 local isDragging = false
 
+-- updates the player attribute used to avoid antenna placement while using this UI
 local function updatePlacementState()
 	local canPlace = not (isHovering or isDragging)
 	player:SetAttribute("CanPlaceAntenna", canPlace)
@@ -258,6 +267,7 @@ local elevationSlider = createSlider(
 	117
 )
 
+-- sends antenna type, elevation, and azimuth to the server simulation
 local function sendAntennaUpdate()
 	local antennaType = player:GetAttribute("ClosestSignalSource")
 
@@ -341,6 +351,7 @@ end)
 -- set the initial placement state
 updatePlacementState()
 
+-- shows the controls required by the current room and nearest antenna type
 local function updateVisibility()
 	local inRoomTwo = player:GetAttribute("InRoomTwo") == true
 	local antennaType = player:GetAttribute("ClosestSignalSource")

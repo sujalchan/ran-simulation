@@ -1,3 +1,10 @@
+--[[
+    Room Two Dashboard
+
+    Client-side material-lab dashboard for room two. It estimates nearby-antenna
+    signal locally and displays signal strength, antenna attributes, and guidance.
+]]
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
@@ -59,6 +66,7 @@ local function getAntennaSignal()
 		if antenna then
 			local dist = (hrp.Position - antenna.Position).Magnitude			if dist < closestDist then
 				closestDist = dist
+				-- this dashboard estimate lowers its -50 dBm baseline by distance and bounds the displayed value
 				closestSignal = -50 - (dist / 5)
 				closestSignal = math.max(-120, math.min(-50, closestSignal))
 			end
@@ -68,6 +76,7 @@ local function getAntennaSignal()
 	return math.floor(closestSignal)
 end
 
+-- shows the room-two panel only while the player is in room two and outside room one
 local function updateVisibility()
 	room2Frame.Visible =
 		player:GetAttribute("InRoomTwo") == true

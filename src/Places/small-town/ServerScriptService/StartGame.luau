@@ -1,3 +1,11 @@
+--[[
+    Start and Reset Game
+
+    Server-side small-town game-session controller. A ProximityPrompt starts a
+    session for one player; the ResetGame RemoteEvent removes that player's
+    placed antennas and NPCs, restores the player, and notifies their client.
+]]
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -9,6 +17,7 @@ local resetGame = ReplicatedStorage.ResetGame
 -- Track which player is currently in the game
 local activePlayer = nil
 
+-- starts the session for the player who activated the world prompt
 prompt.Triggered:Connect(function(player)
 
 	print(player.Name .. " started the game.")

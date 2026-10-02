@@ -1,7 +1,15 @@
+--[[
+    Wall Detection
+
+    Server-side small-town script that creates a visual ray between each player
+    and the signal source, then records intersecting part material and attenuation.
+]]
+
 local Players = game:GetService("Players")
 local Source = workspace:WaitForChild("Source")
 local CellTower = workspace:WaitForChild("Cell Tower")
 
+-- positions the player’s visual ray and stores attributes for intersecting parts
 local function updateRay(player, origin, targetPos)
 	
 	local partName = player.Name .. "_RayVisual"

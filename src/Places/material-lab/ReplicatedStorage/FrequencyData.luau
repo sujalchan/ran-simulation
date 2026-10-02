@@ -1,3 +1,10 @@
+--[[
+    Shared Frequency Data
+
+    Shared material-lab ModuleScript containing the selectable frequency bands,
+    their simulation settings, and lookup tables used by client and server scripts.
+]]
+
 local FrequencyData = {}
 
 -- store all available frequency options

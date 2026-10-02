@@ -1,3 +1,11 @@
+--[[
+    NPC Spawner
+
+    Server-side material-lab NPC controller. It creates and removes NPCs in
+    room one in response to NPCSpawnEvent requests and sends current counts to
+    connected clients.
+]]
+
 local Players = game:GetService("Players")
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,6 +20,7 @@ PhysicsService:RegisterCollisionGroup("NPC")
 PhysicsService:CollisionGroupSetCollidable("NPC", "NPC", false)
 PhysicsService:CollisionGroupSetCollidable("NPC", "Default", true)
 
+-- assigns every BasePart in an NPC model to the NPC collision group
 local function applyCollisionGroupToNPC(npc)
 	for _, part in npc:GetDescendants() do
 		if part:IsA("BasePart") then
@@ -75,8 +84,10 @@ local maxX = halfSize.X - ZONE_EDGE_PADDING
 local minZ = -halfSize.Z + ZONE_EDGE_PADDING
 local maxZ = halfSize.Z - ZONE_EDGE_PADDING
 
+-- chooses a random horizontal position within the room-one zone bounds
 local function getRandomPositionInRoomOne(currentY) 
 	
+	-- pick local X/Z coordinates inside the padded zone, then transform them using the zone's CFrame
 	local localX = math.random(minX, maxX)
 	local localZ = math.random(minZ, maxZ)
 	
@@ -91,6 +102,7 @@ local function getRandomPositionInRoomOne(currentY)
 	)
 end
 
+-- gives the NPC a random shirt and pants color combination
 local function applyRandomColors(npc)
 	local shirtColor = SHIRT_COLORS[math.random(1, #SHIRT_COLORS)]
 	local pantsColor = PANTS_COLORS[math.random(1, #PANTS_COLORS)]
@@ -111,6 +123,7 @@ local function applyRandomColors(npc)
 	if rightLeg then rightLeg.Color = pantsColor end
 end
 
+-- clones an NPC into room one and starts its simple movement behavior
 local function spawnNPC(spawnCenter)
 	if not npcTemplate or not npcFolder then return end
 	if #npcFolder:GetChildren() >= MAX_NPCS then return end
@@ -166,6 +179,7 @@ local function spawnNPC(spawnCenter)
 	return npc
 end
 
+-- removes one NPC from the folder when a lower count is requested
 local function removeNPC()
 	if not npcFolder then return end
 	local npcs = npcFolder:GetChildren()
@@ -175,12 +189,14 @@ local function removeNPC()
 	end
 end
 
+-- returns the number of NPC models currently in the NPC folder
 local function getNPCCount()
 	if not npcFolder then return 0 end
 	return #npcFolder:GetChildren()
 end
 
 -- Handle client requests
+-- accepts an action and optional target count, then sends the resulting count to clients
 npcSpawnEvent.OnServerEvent:Connect(function(player, action, targetCount)
 	if action == "setCount" then
 		-- Set NPC count to a specific target

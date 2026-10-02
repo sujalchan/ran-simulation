@@ -1,3 +1,10 @@
+--[[
+    Room One Dashboard
+
+    Client-side material-lab dashboard that displays player signal, material,
+    frequency, and NPC information using replicated attributes and event updates.
+]]
+
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -31,6 +38,7 @@ room1Frame.Position = HIDDEN_POSITION
 room1Frame.Visible = false
 dashboardGui.Enabled = false
 
+-- enables the dashboard and slides its room-one panel into view when appropriate
 local function updateDashboardVisibility()
 	local inRoomOne = player:GetAttribute("InRoomOne") == true
 	local inRoomTwo = player:GetAttribute("InRoomTwo") == true
@@ -162,6 +170,7 @@ if slider then
 		end
 	end
 
+	-- sends a changed frequency band and its maximum range to the server
 	local function sendFrequencyToServer(index)
 		if index ~= lastSentIndex then
 			lastSentIndex = index
@@ -177,7 +186,9 @@ if slider then
 		return math.clamp(relativeX / slider.AbsoluteSize.X, 0, 1)
 	end
 
+	-- maps a slider ratio to the nearest available frequency option index
 	local function getNearestIndexFromRatio(ratio)
+		-- scale the 0..1 slider position over the gaps between options, then round to the nearest one
 		local index = math.floor(ratio * (#frequencyOptions - 1) + 0.5)
 		return math.clamp(index + 1, 1, #frequencyOptions)
 	end
@@ -252,6 +263,7 @@ local function updateSignalBars(rsrp)
 	end
 end
 
+-- refreshes signal, quality, tower load, and material experiment labels from current values
 local function updateUI(rsrp, sinr, materialName, towerDistance)
 	-- SIGNAL STRENGTH (RSRP) UI
 	signalValue.Text = rsrp .. " dBm"

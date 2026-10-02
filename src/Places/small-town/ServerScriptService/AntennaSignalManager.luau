@@ -1,3 +1,11 @@
+--[[
+    Placed Antenna Signal Manager
+
+    Server-side small-town signal summary for each player. It compares fixed
+    towers and placed antennas using frequency-scaled range, estimates signal
+    and NPC load, then publishes the selected source through player attributes.
+]]
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -38,6 +46,7 @@ local function getAntennaType(modelName)
 	return string.match(modelName, "^(Antenna%d+)")
 end
 
+-- returns a model’s configured signal origin, falling back to its pivot position
 local function getSignalOriginPos(model)
 	local origin = model:FindFirstChild("SignalOrigin", true)
 	if origin and origin:IsA("BasePart") then
@@ -46,6 +55,7 @@ local function getSignalOriginPos(model)
 	return model:GetPivot().Position
 end
 
+-- estimates a placed antenna’s outer range from its type and selected frequency
 local function getOuterRadius(antennaName, freqDivisor)
 	local antennaType = getAntennaType(antennaName)
 	local maxDist = antennaTypeMaxDistance[antennaType] or 20
@@ -160,7 +170,8 @@ RunService.Heartbeat:Connect(function(deltaTime)
 			local closest = closestInRange or closestOverall
 			local withinAnyRange = closestInRange ~= nil
 
-			-- Calculate signal strength based on the selected antenna
+			-- convert distance to the estimate's scale, then lower the -50 baseline according to frequency divisor;
+			-- each tracked NPC connection adds a separate load penalty below for placed antennas.
 			local scaledDistance = closest.dist / 10
 			local baseSignal = -50 - (scaledDistance / divisor)
 
@@ -169,10 +180,11 @@ RunService.Heartbeat:Connect(function(deltaTime)
 			if closest.isPlaced then
 				npcLoad = closest.model:GetAttribute("NPCConnections") or 0
 			end
+			-- model each NPC connection as an additional 2 dB penalty for placed antennas
 			local loadPenalty = npcLoad * 2
 			local finalSignal = baseSignal - loadPenalty
 
-			-- Add slight noise 
+			-- add a small random variation and keep the published estimate within its display range
 			local noise = (math.random() * 2 - 1) * 0.5
 			finalSignal = math.max(-120, math.min(-50, finalSignal + noise))
 

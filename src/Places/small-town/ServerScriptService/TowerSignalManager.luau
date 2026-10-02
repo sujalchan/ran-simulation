@@ -1,3 +1,11 @@
+--[[
+    Tower Signal Manager
+
+    Server-side small-town signal estimator for fixed cell towers. It selects
+    the nearest tower, applies the player's frequency and detected attenuation,
+    and writes the resulting signal and tower details to player attributes.
+]]
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -61,6 +69,7 @@ local frequencyData = {
 -- default frequency if player doesn't have one
 local DEFAULT_FREQUENCY = "2100 MHz"
 
+-- returns the nearest cached tower and the distance to its signal origin
 local function getClosestTower(origin)
 	local closestTower = nil
 	local closestDistance = math.huge
@@ -76,6 +85,9 @@ local function getClosestTower(origin)
 	return closestTower, closestDistance
 end
 
+-- estimates this player's dashboard signal from nearest-tower distance, frequency divisor,
+-- tower power offset, and material attenuation. This is the project's simulation model;
+-- its result is bounded and receives a small random variation.
 local function updatePlayerSignal(player)
 	local character = player.Character
 	if not character then return end
@@ -102,21 +114,21 @@ local function updatePlayerSignal(player)
 	local divisor = freqInfo.divisor
 	local maxDist = closestTower.MaxDistance or freqInfo.maxDistance or 35
 
-	-- scale distance down (studs / 10) so it works in a reasonable range
+	-- convert studs to the smaller distance scale used by this signal estimate
 	local scaledDistance = distance / 10
 
-	-- distance-based signal (starts at -50, decreases with distance)
+	-- start at the simulation baseline and lower it with distance; the frequency divisor sets the slope
 	local baseSignal = -50 - (scaledDistance / divisor)
-	-- weaker towers = worse signal (adds offset)
+	-- shift relative to the -50 baseline according to the tower's configured maximum power
 	baseSignal = baseSignal + (maxPower + 50)
 
-	-- apply material attenuation
+	-- subtract the attenuation value supplied by the material raycast system
 	local finalSignal = baseSignal - attenuation
 
-	-- realistic range (-120 to -50 dBm)
+	-- keep the simulation output within its displayed -120 to -50 dBm interval
 	finalSignal = math.max(-120, math.min(-50, finalSignal))
 
-	-- slight noise for realism (smoothed)
+	-- add a small random variation and clamp again so it stays in the display interval
 	local noise = (math.random() * 2 - 1) * 0.5
 	finalSignal = math.max(-120, math.min(-50, finalSignal + noise))
 

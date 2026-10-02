@@ -1,3 +1,11 @@
+--[[
+    Room One Material Placer
+
+    Client-side material-lab placement tool for selecting and previewing
+    concrete, metal, or wood blocks on the room-one heatmap. Placement requests
+    are sent to the server through PlaceItemEvent.
+]]
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -33,19 +41,24 @@ local HEATMAP_MAX_X = 61
 local HEATMAP_MIN_Z = -33
 local HEATMAP_MAX_Z = 13
 
+-- aligns the block bottom to the room’s vertical placement grid
 local function snapY(value)
 	if value < minimumY then
 		return minimumY
 	end
 
+	-- express height as a grid level above the minimum, round it, then convert that level back to Y
 	local level = math.round((value - minimumY) / gridSize)
 	return minimumY + level * gridSize
 end
 
+-- rounds a horizontal coordinate to the placement grid and its configured offset
 local function snapToGrid(value, offset)
+	-- shift by the grid offset before rounding, then shift back to keep placements aligned to the room grid
 	return math.round((value - offset) / gridSize) * gridSize + offset
 end
 
+-- makes the cloned preview anchored and non-interactive while keeping it translucent
 local function setPreviewAppearance(part)
 	part.Anchored = true
 	part.CanCollide = false
@@ -54,6 +67,7 @@ local function setPreviewAppearance(part)
 	part.Transparency = 0.2
 end
 
+-- replaces the local preview with a clone of the selected placeable material
 local function createPreview()
 	if previewPart then
 		previewPart:Destroy()
@@ -79,6 +93,7 @@ local function createPreview()
 	previewPart.Parent = workspace
 end
 
+-- switches the selected material and rebuilds its placement preview
 local function selectMaterial(materialName)
 	if selectedMaterialName == materialName then
 		return
@@ -90,6 +105,7 @@ local function selectMaterial(materialName)
 	print("selected material:", selectedMaterialName)
 end
 
+-- checks whether the local player is inside room one and its placement bounds
 local function isPlayerOnHeatmap()
 	local character = player.Character
 	if not character then
@@ -116,6 +132,7 @@ local function isPlayerOnHeatmap()
 	return isOnHeatmap
 end
 
+-- raycasts from the cursor and computes a grid-aligned transform on a tile or block face
 local function getPlacementCFrame()
 	if not previewPart then
 		return nil
@@ -175,6 +192,7 @@ local function getPlacementCFrame()
 		local absY = math.abs(normal.Y)
 		local absZ = math.abs(normal.Z)
 
+		-- the largest normal component identifies which face orientation the cursor hit
 		-- snap x and z to grid based on block position
 		x = snapToGrid(blockPos.X, gridOffsetX)
 		z = snapToGrid(blockPos.Z, gridOffsetZ)
@@ -217,6 +235,7 @@ local function getPlacementCFrame()
 	return CFrame.new(position) * rotation
 end
 
+-- sends the current valid material and placement transform to the server
 local function placeItem()
 	if not placementEnabled then
 		return
@@ -240,12 +259,14 @@ end
 
 createPreview()
 
+-- keep the local placement preview aligned with the cursor while placement is enabled and the player is in bounds
 RunService.RenderStepped:Connect(function()
 	if not placementEnabled or not previewPart then
 		return
 	end
 
 	if not isPlayerOnHeatmap() then
+		-- detach the preview outside the allowed area so it is not shown there
 		if previewPart.Parent then
 			previewPart.Parent = nil
 		end
@@ -259,6 +280,7 @@ RunService.RenderStepped:Connect(function()
 	currentPlacementCFrame = getPlacementCFrame()
 
 	if currentPlacementCFrame then
+		-- placement requests calculate and send a transform using the same cursor and grid rules
 		previewPart.CFrame = currentPlacementCFrame
 	end
 end)

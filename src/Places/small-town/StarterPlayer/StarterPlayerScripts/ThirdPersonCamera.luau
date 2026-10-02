@@ -1,3 +1,10 @@
+--[[
+    Third-Person Camera Controls
+
+    Client-side small-town camera script. The StartGame RemoteEvent restores
+    normal camera control; mouse-wheel and keyboard input then adjust zoom.
+]]
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UIS = game:GetService("UserInputService")

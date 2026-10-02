@@ -1,3 +1,11 @@
+--[[
+    Player Shrink Handler
+
+    Server-side material-lab character controller. It saves original scale and
+    walk-speed values, applies the room-one size change, and restores values
+    when the player's InRoomOne state changes.
+]]
+
 local Players = game:GetService("Players")
 
 local SHRINK_MULTIPLIER = 0.2
@@ -14,6 +22,7 @@ local scaleNames = {
 	"HeadScale",
 }
 
+-- caches the character scale values and walk speed before the room change
 local function saveOriginalValues(player, humanoid)
 	originalScales[player] = {}
 
@@ -28,6 +37,7 @@ local function saveOriginalValues(player, humanoid)
 	originalWalkSpeeds[player] = humanoid.WalkSpeed
 end
 
+-- applies the configured scale multiplier to the current character and walk speed
 local function shrinkPlayer(player)
 	local character = player.Character
 	if not character then
@@ -64,6 +74,7 @@ local function shrinkPlayer(player)
 	end
 end
 
+-- restores cached character values and clears that player’s saved state
 local function resetPlayer(player)
 	local character = player.Character
 	if not character then
@@ -103,6 +114,7 @@ local function resetPlayer(player)
 	originalWalkSpeeds[player] = nil
 end
 
+-- chooses the shrink or restore path from the player’s InRoomOne attribute
 local function updatePlayerSize(player)
 	local isInRoom = player:GetAttribute("InRoomOne") == true
 
@@ -113,6 +125,7 @@ local function updatePlayerSize(player)
 	end
 end
 
+-- resets prior character cache and applies the current room state to a new character
 local function setupCharacter(player, character)
 	-- remove values belonging to the previous character
 	originalScales[player] = nil
@@ -123,6 +136,7 @@ local function setupCharacter(player, character)
 	end
 end
 
+-- connects room-state and character lifecycle events for one player
 local function setupPlayer(player)
 	attributeConnections[player] =
 		player:GetAttributeChangedSignal("InRoomOne"):Connect(function()

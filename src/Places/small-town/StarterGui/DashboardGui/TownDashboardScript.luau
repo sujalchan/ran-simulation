@@ -1,3 +1,10 @@
+--[[
+    Town Dashboard
+
+    Client-side small-town dashboard that reads player signal and antenna-load
+    attributes, receives NPC counts, and refreshes signal, tower, and capacity UI.
+]]
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -96,6 +103,7 @@ local function updateSignalBars(rsrp)
 	end
 end
 
+-- dims all available signal bars when no usable signal is displayed
 local function clearSignalBars()
 	for i = 1, 5 do
 		local bar = bars[i]

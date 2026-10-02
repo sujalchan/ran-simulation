@@ -1,3 +1,10 @@
+--[[
+    Signal Ray Visual
+
+    Client-side material-lab visualization that draws a local beam from the
+    player's character to SignalSource while the player is in room one.
+]]
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
@@ -20,16 +27,19 @@ visualPart.Parent = workspace
 
 local humanoidRootPart
 
+-- caches the character root part used as the visual ray origin
 local function setupCharacter(character)
 	humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 end
 
 player.CharacterAdded:Connect(setupCharacter)
 
+-- initialize the origin immediately when this LocalScript starts after the character has spawned
 if player.Character then
 	setupCharacter(player.Character)
 end
 
+-- redraw the local source-to-player indicator each frame while room one is active
 RunService.RenderStepped:Connect(function()
 	if not humanoidRootPart then
 		return
@@ -44,6 +54,7 @@ RunService.RenderStepped:Connect(function()
 	local origin = humanoidRootPart.Position
 	local targetPosition = source.Position
 	
+	-- use the endpoint separation as the beam length, then place its center halfway along the ray
 	local distance = (targetPosition - origin).Magnitude
 
 	visualPart.Size = Vector3.new(
@@ -52,6 +63,7 @@ RunService.RenderStepped:Connect(function()
 		distance
 	)
 
+	-- face the part toward the source and offset it along local -Z so it spans both endpoints
 	visualPart.CFrame =
 		CFrame.lookAt(origin, targetPosition)
 		* CFrame.new(0, 0, -distance / 2)

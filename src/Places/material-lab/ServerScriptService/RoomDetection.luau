@@ -1,3 +1,11 @@
+--[[
+    Room Detection
+
+    Server-side material-lab zone tracker. It samples player positions against
+    room volumes, publishes room-presence attributes, and updates nearby antenna
+    settings for the room-two dashboard.
+]]
+
 -- services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -51,7 +59,7 @@ local function isPointInsideBox(point, boxPart)
 	local localPoint = boxPart.CFrame:PointToObjectSpace(point)
 	local halfSize = boxPart.Size / 2
 
-	-- check if point is within box bounds on all axes
+	-- compare absolute local coordinates with half-extents so rotated zone parts work as boxes
 	return math.abs(localPoint.X) <= halfSize.X
 		and math.abs(localPoint.Y) <= halfSize.Y
 		and math.abs(localPoint.Z) <= halfSize.Z
@@ -143,6 +151,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
 			if inRoomTwo then
 				local closestAntenna = getClosestAntenna(rootPart.Position)
 				if closestAntenna then
+					-- publish the nearby antenna's configured characteristics for the room-two UI and controls
 					player:SetAttribute("AntennaType", closestAntenna.name)
 					player:SetAttribute("BeamWidth", closestAntenna.beamWidth)
 					player:SetAttribute("TiltAngle", closestAntenna.tiltAngle)
@@ -155,6 +164,8 @@ RunService.Heartbeat:Connect(function(deltaTime)
 		local state = playerStates[player]
 
 		if state then
+			-- update replicated room flags only when the player crosses a zone boundary
+			-- these attributes are read by client dashboards and room-specific behavior
 			if inRoomOne ~= state.inRoomOne then
 				state.inRoomOne = inRoomOne
 				player:SetAttribute("InRoomOne", inRoomOne)

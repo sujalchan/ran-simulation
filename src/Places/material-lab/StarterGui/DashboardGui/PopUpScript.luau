@@ -1,3 +1,10 @@
+--[[
+    Antenna Details Popup
+
+    Client-side material-lab room-two popup that displays the player's antenna
+    settings and explanatory text, refreshing when the related attributes change.
+]]
+
 -- Room 2 Pop-up Dashboard
 local player = game.Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")

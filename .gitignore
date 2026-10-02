@@ -3,6 +3,9 @@
 # https://github.com/luau-lang/luau
 # https://luau.org/
 
+# macOS Finder metadata
+.DS_Store
+
 # Code coverage
 coverage.out
 
