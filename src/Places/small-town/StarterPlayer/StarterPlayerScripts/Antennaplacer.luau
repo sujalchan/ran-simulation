@@ -46,15 +46,15 @@ local originalModelRotation = CFrame.identity
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
-local INITIAL_BUDGET = 1000
+local INITIAL_BUDGET = 850000
 local currentBudget = INITIAL_BUDGET
 
 -- The 4 antenna options
 local antennaOptions = {
-	{displayName = "Rooftop Cell Site", modelName = "Antenna1", cost = 50},
-	{displayName = "Monopole Cell Tower", modelName = "Antenna2", cost = 100},
-	{displayName = "Panel Antenna Tower", modelName = "Antenna3", cost = 200},
-	{displayName = "Lattice Tower", modelName = "Antenna4", cost = 350},
+	{displayName = "Rooftop Cell Site", modelName = "Antenna1", cost = 50000},
+	{displayName = "Monopole Cell Tower", modelName = "Antenna2", cost = 100000},
+	{displayName = "Panel Antenna Tower", modelName = "Antenna3", cost = 200000},
+	{displayName = "Lattice Tower", modelName = "Antenna4", cost = 350000},
 }
 
 -- returns the configured price for the currently selected antenna type
@@ -213,12 +213,19 @@ local function rotatePreview(direction)
 end
 
 -- Update budget text
+local function formatDollars(amount)
+	local reversed = string.reverse(string.format("%d", amount))
+	local grouped = string.gsub(reversed, "(%d%d%d)", "%1,")
+	grouped = string.gsub(grouped, ",$", "")
+	return "$" .. string.reverse(grouped)
+end
+
 local function updateBudgetDisplay()
 	local gui = player.PlayerGui:FindFirstChild("AntennaGUI")
 	if gui then
 		local budgetLabel = gui:FindFirstChild("MainFrame"):FindFirstChild("BudgetLabel")
 		if budgetLabel then
-			budgetLabel.Text = "Budget: $" .. string.format("%d", currentBudget) .. "k"
+			budgetLabel.Text = "Budget: " .. formatDollars(currentBudget)
 		end
 	end
 end
@@ -265,7 +272,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 					if refundCost > 0 then
 						currentBudget = currentBudget + refundCost
 						updateBudgetDisplay()
-						print("[AntennaPlacer] Refunded: $" .. refundCost .. "k | Current Budget: $" .. currentBudget .. "k")
+						print("[AntennaPlacer] Refunded: " .. formatDollars(refundCost) .. " | Current Budget: " .. formatDollars(currentBudget))
 					else
 						warn("[AntennaPlacer] Could not determine antenna type for refund:", targetModel.Name)
 					end
@@ -279,7 +286,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			local cost = getSelectedCost()
 
 			if currentBudget < cost then
-				warn("Not enough budget! Required cost: $" .. cost .. "k")
+				warn("Not enough budget! Required cost: " .. formatDollars(cost))
 				return
 			end
 
@@ -477,7 +484,7 @@ local function createGUI()
 	budgetLabel.Size = UDim2.new(1, -20, 0, 20)
 	budgetLabel.Position = UDim2.new(0, 10, 0, 26)
 	budgetLabel.BackgroundTransparency = 1
-	budgetLabel.Text = "Budget: $" .. string.format("%d", currentBudget) .. "k"
+	budgetLabel.Text = "Budget: " .. formatDollars(currentBudget)
 	budgetLabel.TextColor3 = Color3.fromRGB(85, 255, 127)
 	budgetLabel.Font = Enum.Font.GothamBold
 	budgetLabel.TextSize = 14
@@ -495,7 +502,7 @@ local function createGUI()
 		button.TextColor3 = Color3.fromRGB(255, 255, 255)
 		button.Font = Enum.Font.Gotham
 		button.TextSize = 12
-		button.Text = opt.displayName .. " ($" .. opt.cost .. "k)"
+		button.Text = opt.displayName .. " (" .. formatDollars(opt.cost) .. ")"
 		button.BorderSizePixel = 0
 		button.AutoButtonColor = true
 		button.Parent = frame

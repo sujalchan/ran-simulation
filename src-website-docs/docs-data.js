@@ -198,7 +198,7 @@
     }),
     script('small-town', 'StarterPlayer/StarterPlayerScripts/Antennaplacer.luau', 'Creates the placement GUI, manages antenna preview and budget, and submits place/delete/reset requests.', {
       functions: ['computeBaseCenter and createPreview — align the model preview.', 'getMousePosition and rotatePreview — update cursor placement and orientation.', 'showResultsPopup and createGUI — manage the activity UI.'],
-      state: 'INITIAL_BUDGET = 1000; antennaOptions maps four model names to costs; selected antenna, preview, angle, and current budget are local.',
+      state: 'INITIAL_BUDGET = 850000 ($850,000); antennaOptions maps four model names to dollar-denominated costs; selected antenna, preview, angle, and current budget are local.',
       services: ['Players', 'ReplicatedStorage', 'RunService', 'UserInputService'], objects: ['AntennaModels', 'PlacedAntennas', 'player GUI', 'CoverageScore attribute'],
       events: [['Sends', 'PlaceAntenna', 'model name, Vector3 position, rotation'], ['Sends', 'DeleteAntenna', 'model instance name'], ['Sends / receives', 'ResetGame', 'reset request and completion'], ['Receives', 'StartGame', 'starts placement activity']],
       related: ['experience/small-town', 'simulation/antennas', 'interface'], terms: ['budget', 'coverage score']
@@ -384,7 +384,7 @@
       <h2 id="session">Starting and resetting</h2>
       <p>${scriptLink('town-start-game','StartGame')} listens to the <code>StartButton</code> proximity prompt, records the active player, and fires ${eventLink('StartGame','StartGame','small-town')} to that client. A reset request through ${eventLink('ResetGame','ResetGame','small-town')} removes that player's owned antennas, clears NPCs, restores speed, moves the character near <code>SpawnLocation</code>, and notifies the client.</p>
       <h2 id="antennas">Building coverage</h2>
-      <p>${scriptLink('town-antennaplacer','Antennaplacer')} presents four priced antenna options, a placement preview, rotation, deletion, and a budget starting at 1000. ${scriptLink('town-antenna-server','AntennaServer')} validates and clones models. ${scriptLink('town-cell-tower-visualizer','CellTowerVisualizer')} can show range spheres and a coverage percentage, which the placement UI uses for results.</p>
+      <p>${scriptLink('town-antennaplacer','Antennaplacer')} presents four priced antenna options, a placement preview, rotation, deletion, and a budget starting at $850,000. ${scriptLink('town-antenna-server','AntennaServer')} validates and clones models. ${scriptLink('town-cell-tower-visualizer','CellTowerVisualizer')} can show range spheres and a coverage percentage, which the placement UI uses for results.</p>
       <h2 id="signal">Moving through the network</h2>
       <p>${scriptLink('town-tower-signal-manager','TowerSignalManager')} samples fixed-tower signal and material attenuation. ${scriptLink('town-antenna-signal-manager','AntennaSignalManager')} also considers placed antennas and their NPC load for the town dashboard. ${scriptLink('town-ray-material-detection','RayMaterialDetection')} reads attenuation zones; ${scriptLink('town-wall-detection','WallDetection')} inspects overlap along a visual ray.</p>
       <h2 id="support">Supporting systems</h2>
